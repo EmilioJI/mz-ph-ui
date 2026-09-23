@@ -1,0 +1,58 @@
+name: Public Frontend Security Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public frontend boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [Path("index.html"), Path("style.css"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
+          text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
+
+          forbidden = [
+              "sb_secret_",
+              "service_role",
+              "SUPABASE_SERVICE_ROLE_KEY",
+              "DEEPSEEK_API_KEY",
+              "ZHIPUAI_API_KEY",
+              "GLM_API_KEY",
+              "OPENAI_API_KEY",
+              "BEGIN PRIVATE KEY",
+          ]
+          for token in forbidden:
+              if token in text:
+                  raise SystemExit("forbidden public secret marker: " + token)
+
+          if "localStorage" in text:
+              raise SystemExit("admin JWT must not persist in localStorage")
+          if 'sessionStorage.getItem("mz_ai_admin_token")' not in text:
+              raise SystemExit("session-scoped admin token contract missing")
+          if 'autocomplete="new-password"' not in text:
+              raise SystemExit("provider key browser-autofill hardening missing")
+          if "Content-Security-Policy" not in text:
+              raise SystemExit("CSP missing")
+          if "ibshmenzooxndneqwqht.supabase.co" not in text:
+              raise SystemExit("backend endpoint missing")
+
+          suspicious = re.findall(r'(?i)(?:sk-|sk_proj_|AIza)[A-Za-z0-9_\-]{16,}', text)
+          if suspicious:
+              raise SystemExit("possible secret-shaped value detected")
+
+          print("PUBLIC_FRONTEND_SECURITY_GATE=PASS")
+          PY
