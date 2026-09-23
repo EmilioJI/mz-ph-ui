@@ -25,6 +25,24 @@ jobs:
           files = [Path("index.html"), Path("workspace.html"), Path("style.css"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
           text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
           root = Path("index.html").read_text(encoding="utf-8")
+          workspace = Path("workspace.html").read_text(encoding="utf-8")
+          app = Path("app.js").read_text(encoding="utf-8")
+
+          for marker in ('id="model_select"', 'id="model_custom"'):
+              if marker not in workspace:
+                  raise SystemExit("provider model control missing: " + marker)
+          for marker in (
+              'deepseek-flash',
+              'deepseek-v4-pro',
+              'glm-5.3-flash',
+              'gpt-5.6-luna',
+              'gpt-5.6-terra',
+              'gpt-5.6-sol',
+              'applyProviderDefaults',
+              'syncBaseUrl',
+          ):
+              if marker not in app:
+                  raise SystemExit("provider linkage contract missing: " + marker)
 
           for marker in ("AI Provider Hub", "管理员登录", "p2-ai-provider-admin", "api_key"):
               if marker in root:
@@ -65,3 +83,5 @@ jobs:
 
           print("PUBLIC_FRONTEND_SECURITY_GATE=PASS")
           PY
+      - name: Verify JavaScript syntax
+        run: node --check app.js
