@@ -24,6 +24,15 @@ jobs:
 
           files = [Path("index.html"), Path("workspace.html"), Path("style.css"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
           text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
+          root = Path("index.html").read_text(encoding="utf-8")
+
+          for marker in ("AI Provider Hub", "管理员登录", "p2-ai-provider-admin", "api_key"):
+              if marker in root:
+                  raise SystemExit("operational marker exposed on public root: " + marker)
+          if './app.js' in root:
+              raise SystemExit("public root must not load operational app.js")
+          if 'name="robots"' not in root or "noindex" not in root:
+              raise SystemExit("public root noindex directive missing")
 
           forbidden = [
               "sb_secret_",
