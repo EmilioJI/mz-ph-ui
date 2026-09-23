@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://ibshmenzooxndneqwqht.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
-<title>蒙正 · 工作区</title>
+<title>MZ · Operations Hub</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -89,25 +89,47 @@
       <div class="hero-badge">MFA · RBAC · Audit</div>
     </section>
 
-    <section class="card ops-context">
+    <section id="projectContext" class="card ops-context">
       <div class="section-title">
         <div>
           <h2>当前项目</h2>
-          <p class="muted">首个接入项目；后续项目复用同一认证、权限和审计体系。</p>
+          <p class="muted">统一认证与审计已经覆盖核心项目；项目专属能力按各自架构独立接入。</p>
         </div>
         <span id="roleBadge" class="badge">加载中</span>
       </div>
       <div class="grid">
         <div>
           <label for="projectSelect">项目</label>
-          <select id="projectSelect" disabled>
-            <option value="mengzheng">蒙正规划</option>
+          <select id="projectSelect">
+            <option value="">加载项目…</option>
           </select>
         </div>
         <div>
           <label for="mfaSessionState">当前安全会话</label>
           <input id="mfaSessionState" value="等待验证" disabled>
         </div>
+        <div>
+          <label for="projectRepo">GitHub 仓库</label>
+          <input id="projectRepo" value="-" disabled>
+        </div>
+        <div>
+          <label for="projectBranch">默认运维分支</label>
+          <input id="projectBranch" value="-" disabled>
+        </div>
+        <div>
+          <label for="projectType">项目类型</label>
+          <input id="projectType" value="-" disabled>
+        </div>
+        <div>
+          <label for="projectCapabilities">接入能力</label>
+          <input id="projectCapabilities" value="-" disabled>
+        </div>
+      </div>
+      <div id="projectIntegrationNote" class="policy-note">
+        正在加载项目能力…
+      </div>
+      <div class="row top-gap">
+        <button id="opsLogoutBtn" class="ghost" type="button">退出登录</button>
       </div>
     </section>
 
@@ -168,7 +190,7 @@
       <div id="securityStatus" class="status top-gap">尚未加载</div>
     </section>
 
-    <section class="card">
+    <section id="mengzhengModelPresets" class="card project-module">
       <div class="section-title">
         <div>
           <h2>模型预设</h2>
@@ -192,7 +214,7 @@
       <div id="policy_note" class="policy-note"></div>
     </section>
 
-    <section class="card">
+    <section id="mengzhengProviderConfig" class="card project-module">
       <div class="section-title">
         <div>
           <h2>当前 / 草稿配置</h2>
@@ -283,7 +305,7 @@
       </div>
     </section>
 
-    <section class="card">
+    <section id="mengzhengJevConfig" class="card project-module">
       <div class="section-title">
         <div>
           <h2>Jev Decision Provider</h2>
@@ -347,7 +369,7 @@
       <div class="section-title">
         <div>
           <h2>操作审计</h2>
-          <p class="muted">记录 Provider/Jev 配置修改、测试、权限拒绝等敏感运维事件；不会记录 API Key 明文。</p>
+          <p class="muted">按当前项目记录敏感运维事件；不会记录 API Key 明文。</p>
         </div>
         <button class="secondary" id="auditReloadBtn" type="button">刷新审计</button>
       </div>
