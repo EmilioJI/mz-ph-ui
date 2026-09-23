@@ -361,7 +361,7 @@ document.querySelectorAll("[data-preset]").forEach(
 
 $("provider").addEventListener("change",applyProviderDefaults);
 $("api_style").addEventListener("change",()=>{
-  syncBaseUrl({force:true});
+  syncBaseUrl({force:$("provider").value!=="openai_compatible"});
   refreshDraft();
 });
 $("model_select").addEventListener("change",()=>{
