@@ -14,6 +14,7 @@ let decisionKeyConfigured=false;
 let opsAuthStatus=null;
 let mfaFactorId="";
 let mfaMode="";
+let backupTotpFactorId="";
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -620,6 +621,143 @@ async function verifyMfa(){
   }
 }
 
+async function loadSecuritySettings(){
+  const user=await authApi("/auth/v1/user");
+  const factors=Array.isArray(user?.factors)?user.factors:[];
+  const verifiedTotp=factors.filter(
+    factor=>factor?.factor_type==="totp"&&factor?.status==="verified"
+  );
+  const count=verifiedTotp.length;
+
+  $("totpFactorSummary").value=count+" 个已验证因子";
+  $("totpFactorBadge").textContent=count>=2?"TOTP · 冗余已建立":"TOTP · 建议添加备用";
+  $("totpFactorBadge").className="badge";
+  $("mfaPolicyState").value=opsAuthStatus?.mfa_required===true
+    ?"强制 · aal2"
+    :"未强制";
+  $("backupTotpStartBtn").disabled=count>=10;
+
+  const advice=$("backupTotpAdvice");
+  if(count>=2){
+    advice.textContent="已建立备用 MFA 因子。建议两个因子放在不同设备或不同验证器中，避免单点丢失。";
+  }else if(count===1){
+    advice.textContent="当前只有 1 个 TOTP 因子。建议添加一个备用验证器；Supabase 不提供传统 recovery codes。";
+  }else{
+    advice.textContent="当前没有检测到已验证 TOTP 因子；请重新登录并完成 MFA 绑定。";
+  }
+
+  $("securityStatus").className="status top-gap "+(count>=1?"ok":"bad");
+  $("securityStatus").textContent=[
+    "会话: "+(opsAuthStatus?.aal||"-"),
+    "MFA 强制: "+(opsAuthStatus?.mfa_required===true?"YES":"NO"),
+    "已验证 TOTP: "+count,
+    "备用状态: "+(count>=2?"READY":"建议补充")
+  ].join("\n");
+  return verifiedTotp;
+}
+
+async function cleanupBackupTotp(){
+  if(!backupTotpFactorId)return;
+  const factorId=backupTotpFactorId;
+  backupTotpFactorId="";
+  try{
+    await authApi("/auth/v1/factors/"+encodeURIComponent(factorId),"DELETE");
+  }catch(_e){}
+}
+
+function resetBackupTotpPanel(){
+  backupTotpFactorId="";
+  $("backupTotpPanel").classList.add("hidden");
+  $("backupTotpQr").removeAttribute("src");
+  $("backupTotpSecret").value="";
+  $("backupTotpCode").value="";
+  $("backupTotpVerifyBtn").disabled=false;
+}
+
+async function startBackupTotpEnrollment(){
+  if(opsAuthStatus?.aal!=="aal2"){
+    throw new Error("请先完成 MFA 二次验证");
+  }
+  await cleanupBackupTotp();
+  resetBackupTotpPanel();
+
+  const enrolled=await authApi("/auth/v1/factors","POST",{
+    friendly_name:"MZ Operations Hub Backup",
+    factor_type:"totp",
+    issuer:"MZ Operations Hub"
+  });
+  if(!enrolled?.id||!enrolled?.totp?.secret){
+    throw new Error("备用 TOTP 初始化失败");
+  }
+
+  backupTotpFactorId=enrolled.id;
+  $("backupTotpQr").src=qrDataUri(enrolled.totp.qr_code);
+  $("backupTotpSecret").value=String(enrolled.totp.secret||"");
+  $("backupTotpPanel").classList.remove("hidden");
+  $("securityStatus").className="status top-gap";
+  $("securityStatus").textContent="备用验证器待确认：扫码后输入动态验证码。";
+  $("backupTotpCode").focus();
+}
+
+async function verifyBackupTotp(){
+  const code=$("backupTotpCode").value.replace(/\s+/g,"").trim();
+  if(!backupTotpFactorId)throw new Error("请先开始备用验证器绑定");
+  if(!/^\d{6,8}$/.test(code))throw new Error("请输入 6–8 位数字验证码");
+
+  const button=$("backupTotpVerifyBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="验证中…";
+  try{
+    const challenge=await authApi(
+      "/auth/v1/factors/"+encodeURIComponent(backupTotpFactorId)+"/challenge",
+      "POST",
+      {factorId:backupTotpFactorId}
+    );
+    if(!challenge?.id)throw new Error("无法创建备用 MFA challenge");
+
+    const verified=await authApi(
+      "/auth/v1/factors/"+encodeURIComponent(backupTotpFactorId)+"/verify",
+      "POST",
+      {challenge_id:challenge.id,code}
+    );
+    const elevatedToken=verified?.access_token||verified?.session?.access_token||"";
+    if(elevatedToken){
+      token=elevatedToken;
+      sessionStorage.setItem("mz_ai_admin_token",token);
+    }
+
+    backupTotpFactorId="";
+    $("backupTotpPanel").classList.add("hidden");
+    $("backupTotpSecret").value="";
+    $("backupTotpCode").value="";
+    $("securityStatus").className="status top-gap ok";
+    $("securityStatus").textContent="备用 TOTP 已验证并启用。";
+    await loadSecuritySettings();
+  }catch(error){
+    $("securityStatus").className="status top-gap bad";
+    $("securityStatus").textContent="备用 TOTP 验证失败："+error.message;
+    $("backupTotpCode").select();
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
+async function cancelBackupTotp(){
+  const button=$("backupTotpCancelBtn");
+  button.disabled=true;
+  try{
+    await cleanupBackupTotp();
+    resetBackupTotpPanel();
+    $("securityStatus").className="status top-gap";
+    $("securityStatus").textContent="已取消；未验证的备用因子已清理。";
+    await loadSecuritySettings();
+  }finally{
+    button.disabled=false;
+  }
+}
+
 function renderAudit(events){
   const root=$("auditLog");
   root.replaceChildren();
@@ -730,6 +868,10 @@ async function loadConfig(){
     $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
   });
   loadAudit();
+  loadSecuritySettings().catch(error=>{
+    $("securityStatus").className="status top-gap bad";
+    $("securityStatus").textContent="安全状态加载失败："+error.message;
+  });
 }
 
 async function save(){
@@ -765,6 +907,7 @@ function logout(){
   opsAuthStatus=null;
   mfaFactorId="";
   mfaMode="";
+  backupTotpFactorId="";
   $("api_key").value="";
   $("jev_api_key").value="";
   $("mfaCode").value="";
@@ -833,6 +976,38 @@ $("jevSaveBtn").addEventListener("click",saveDecision);
 $("jevTestBtn").addEventListener("click",testDecision);
 $("jevReloadBtn").addEventListener("click",()=>loadDecisionConfig().catch(error=>alert(error.message)));
 $("auditReloadBtn").addEventListener("click",loadAudit);
+$("securityReloadBtn").addEventListener("click",()=>loadSecuritySettings().catch(error=>{
+  $("securityStatus").className="status top-gap bad";
+  $("securityStatus").textContent=error.message;
+}));
+$("backupTotpStartBtn").addEventListener("click",()=>startBackupTotpEnrollment().catch(error=>{
+  $("securityStatus").className="status top-gap bad";
+  $("securityStatus").textContent=error.message;
+}));
+$("backupTotpVerifyBtn").addEventListener("click",()=>verifyBackupTotp().catch(error=>{
+  $("securityStatus").className="status top-gap bad";
+  $("securityStatus").textContent=error.message;
+}));
+$("backupTotpCode").addEventListener("keydown",event=>{
+  if(event.key==="Enter")verifyBackupTotp().catch(error=>{
+    $("securityStatus").className="status top-gap bad";
+    $("securityStatus").textContent=error.message;
+  });
+});
+$("backupTotpCancelBtn").addEventListener("click",cancelBackupTotp);
+$("backupTotpCopyBtn").addEventListener("click",async()=>{
+  const secret=$("backupTotpSecret").value;
+  if(!secret)return;
+  try{
+    await navigator.clipboard.writeText(secret);
+    $("securityStatus").className="status top-gap ok";
+    $("securityStatus").textContent="备用验证器手工密钥已复制。";
+  }catch(_e){
+    $("backupTotpSecret").select();
+    $("securityStatus").className="status top-gap";
+    $("securityStatus").textContent="已选中备用密钥，请手动复制。";
+  }
+});
 $("logoutBtn").addEventListener("click",logout);
 
 if(token){
