@@ -10,6 +10,7 @@ const PUB="sb_publishable_yqKuTHTSDSv427w71lJWbA_2DDk2_1v";
 const FN=BASE+"/functions/v1/p2-ai-provider-admin";
 let token=sessionStorage.getItem("mz_ai_admin_token")||"";
 let keyStates={};
+let decisionKeyConfigured=false;
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -289,6 +290,107 @@ function showHealth(x){
   ].join("\n");
 }
 
+function decisionPayload(){
+  return{
+    base_url:$("jev_base_url").value.trim(),
+    model:$("jev_model").value.trim(),
+    api_key:$("jev_api_key").value.trim(),
+    timeout_ms:Number($("jev_timeout_ms").value),
+    enabled:$("jev_enabled").value==="true"
+  };
+}
+
+function validateDecisionPayload(value){
+  if(value.base_url!=="https://jev.bocha.cn/v1/systemone"){
+    throw new Error("Jev Service URL 必须使用受控的 https://jev.bocha.cn/v1/systemone");
+  }
+  if(!value.model)throw new Error("请填写 Jev 模型 ID");
+  if(!Number.isInteger(value.timeout_ms)||value.timeout_ms<3000||value.timeout_ms>60000){
+    throw new Error("Jev Timeout 必须是 3000–60000 ms");
+  }
+  if(value.enabled&&!value.api_key&&!decisionKeyConfigured){
+    throw new Error("开启 Jev 前需要先填写或保存 Bocha Jev API Key");
+  }
+  return value;
+}
+
+function refreshDecisionDraft(){
+  const typedKey=$("jev_api_key").value.trim();
+  const enabled=$("jev_enabled").value==="true";
+  $("jev_key_state").value=typedKey
+    ?"已输入新 Key（尚未保存）"
+    :decisionKeyConfigured
+      ?"已保存到 Vault（不回显）"
+      :"尚未保存";
+  $("jevBadge").textContent=enabled?"Jev ON · fail-open":"Jev OFF";
+}
+
+function showDecisionHealth(x){
+  const node=$("jevHealth");
+  const isResult=typeof x?.ok==="boolean";
+  const ok=isResult?x.ok:x?.last_test_ok;
+  node.className="status top-gap "+(ok===true?"ok":ok===false?"bad":"");
+  if(isResult){
+    node.textContent=[
+      "结果: "+(x.ok?"PASS":"FAIL"),
+      "模型: "+(x.model||"-"),
+      "延迟: "+(x.latency_ms??"-")+" ms",
+      "HTTP: "+(x.http_status??"-"),
+      "故障策略: "+(x.failure_policy||"fail_open"),
+      "回答: "+(x.answer?JSON.stringify(x.answer):"-"),
+      "错误: "+(x.error_code||"-"),
+      "信息: "+(x.message||"-")
+    ].join("\n");
+    return;
+  }
+  node.textContent=[
+    "最后测试: "+(x?.last_test_at||"无"),
+    "结果: "+(x?.last_test_ok==null?"未测试":x.last_test_ok?"PASS":"FAIL"),
+    "延迟: "+(x?.last_test_latency_ms??"-")+" ms",
+    "HTTP: "+(x?.last_test_http_status??"-"),
+    "故障策略: fail_open",
+    "错误: "+(x?.last_test_error_code||"-"),
+    "信息: "+(x?.last_test_message||"-")
+  ].join("\n");
+}
+
+async function loadDecisionConfig(){
+  const value=await api("decision_config");
+  const cfg=value.config||{};
+  decisionKeyConfigured=cfg.api_key_configured===true;
+  $("jev_base_url").value=cfg.base_url||"https://jev.bocha.cn/v1/systemone";
+  $("jev_model").value=cfg.model||"bocha-jev-v1";
+  $("jev_timeout_ms").value=Number(cfg.timeout_ms||15000);
+  $("jev_enabled").value=String(cfg.enabled===true);
+  $("jev_api_key").value="";
+  $("jev_failure_policy").value="fail-open · Jev 失败不阻塞主规划";
+  refreshDecisionDraft();
+  showDecisionHealth(cfg);
+}
+
+async function saveDecision(){
+  try{
+    const value=validateDecisionPayload(decisionPayload());
+    await api("decision_save","POST",value);
+    $("jev_api_key").value="";
+    await loadDecisionConfig();
+    alert(value.enabled?"Jev 已保存并允许决策增强":"Jev 已保存并保持关闭");
+  }catch(error){
+    alert(error.message);
+  }
+}
+
+async function testDecision(){
+  try{
+    const value=validateDecisionPayload(decisionPayload());
+    const response=await api("decision_test","POST",value);
+    showDecisionHealth(response.result||{});
+    refreshDecisionDraft();
+  }catch(error){
+    alert(error.message);
+  }
+}
+
 function setAuthenticated(authenticated){
   $("workspaceHero")?.classList.toggle("hidden",authenticated);
   $("login").classList.toggle("hidden",authenticated);
@@ -362,6 +464,10 @@ async function loadConfig(){
   $("activeBadge").textContent=(c.provider||"-")+" / "+(c.model||"-");
   refreshDraft();
   showHealth(c);
+  loadDecisionConfig().catch(error=>{
+    $("jevHealth").className="status top-gap bad";
+    $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
+  });
 }
 
 async function save(){
@@ -416,6 +522,10 @@ $("thinking_mode").addEventListener("change",refreshDraft);
 $("api_key").addEventListener("input",refreshDraft);
 $("base_url").addEventListener("input",refreshDraft);
 
+$("jev_enabled").addEventListener("change",refreshDecisionDraft);
+$("jev_api_key").addEventListener("input",refreshDecisionDraft);
+$("jev_model").addEventListener("input",refreshDecisionDraft);
+
 $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.message)));
 $("password").addEventListener("keydown",event=>{
   if(event.key==="Enter")signIn().catch(error=>alert(error.message));
@@ -424,6 +534,9 @@ $("saveBtn").addEventListener("click",save);
 $("testConnBtn").addEventListener("click",()=>testProvider("connection"));
 $("testRespBtn").addEventListener("click",()=>testProvider("generation"));
 $("reloadBtn").addEventListener("click",()=>loadConfig().catch(error=>alert(error.message)));
+$("jevSaveBtn").addEventListener("click",saveDecision);
+$("jevTestBtn").addEventListener("click",testDecision);
+$("jevReloadBtn").addEventListener("click",()=>loadDecisionConfig().catch(error=>alert(error.message)));
 $("logoutBtn").addEventListener("click",logout);
 
 if(token){
