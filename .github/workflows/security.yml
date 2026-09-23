@@ -37,6 +37,19 @@ jobs:
               if marker not in workspace:
                   raise SystemExit("Operations Hub security surface missing: " + marker)
           for marker in (
+              'id="projectSelect"',
+              'id="projectRepo"',
+              'id="projectBranch"',
+              'id="projectCapabilities"',
+              'id="mengzhengModelPresets"',
+              'id="mengzhengProviderConfig"',
+              'id="mengzhengJevConfig"',
+          ):
+              if marker not in workspace:
+                  raise SystemExit("multi-project Operations Hub surface missing: " + marker)
+          if 'id="projectSelect" disabled' in workspace:
+              raise SystemExit("project selector must be driven by authorized memberships")
+          for marker in (
               'id="backupTotpStartBtn"',
               'id="backupTotpQr"',
               'id="backupTotpSecret"',
@@ -67,6 +80,18 @@ jobs:
           ):
               if marker not in app:
                   raise SystemExit("backup TOTP behavior contract missing: " + marker)
+          for marker in (
+              'opsMemberships',
+              'applyProjectSelection',
+              'membershipFor',
+              'renderProjectSelection',
+              '{project:selectedProjectKey}',
+              'selectedProjectKey==="mengzheng"',
+              'core-api / worker / parent-web',
+              'Judge / Reply / Vision Provider',
+          ):
+              if marker not in app:
+                  raise SystemExit("multi-project isolation contract missing: " + marker)
           if 'sessionStorage.setItem("backupTotp' in app:
               raise SystemExit("backup TOTP secret must never persist in storage")
           if workspace.index('id="health"') > workspace.index('Jev Decision Provider'):
