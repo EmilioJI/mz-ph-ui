@@ -99,7 +99,7 @@ jobs:
               '{project:selectedProjectKey}',
               'selectedProjectKey==="mengzheng"',
               'XST_*',
-              'Judge / Reply / Vision Provider',
+              'Judge / Reply / Vision 已独立建模',
           ):
               if marker not in app:
                   raise SystemExit("multi-project isolation contract missing: " + marker)
