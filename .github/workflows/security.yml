@@ -31,6 +31,13 @@ jobs:
           for marker in ('id="model_select"', 'id="model_custom"'):
               if marker not in workspace:
                   raise SystemExit("provider model control missing: " + marker)
+          if 'id="health"' not in workspace or 'Jev Decision Provider' not in workspace:
+              raise SystemExit("provider test or Jev section missing")
+          if workspace.index('id="health"') > workspace.index('Jev Decision Provider'):
+              raise SystemExit("primary provider test result must stay before Jev section")
+          for marker in ('setProviderTestBusy', 'showProviderTestResult', '测试响应中…'):
+              if marker not in app:
+                  raise SystemExit("primary provider test feedback contract missing: " + marker)
           for marker in (
               'deepseek-flash',
               'deepseek-v4-pro',
