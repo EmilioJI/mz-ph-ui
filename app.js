@@ -15,6 +15,8 @@ let opsAuthStatus=null;
 let mfaFactorId="";
 let mfaMode="";
 let backupTotpFactorId="";
+let opsMemberships=[];
+let selectedProjectKey=sessionStorage.getItem("mz_ops_project")||"mengzheng";
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -471,18 +473,97 @@ function qrDataUri(raw){
   return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(value);
 }
 
+function membershipFor(projectKey=selectedProjectKey){
+  return opsMemberships.find(item=>item?.project_key===projectKey)||null;
+}
+
+function capabilitySummary(capabilities){
+  const value=capabilities&&typeof capabilities==="object"?capabilities:{};
+  const labels={
+    provider_control:"Provider",
+    jev_decision:"Jev",
+    security:"Security",
+    audit:"Audit",
+    cloud_runtime:"Cloud",
+    ci:"CI",
+    release_health:"Release",
+    device_provider_settings:"Device config"
+  };
+  return Object.entries(value)
+    .map(([key,status])=>(labels[key]||key)+"="+String(status))
+    .join(" · ")||"基础接入";
+}
+
+function projectIntegrationMessage(project){
+  const key=project?.project_key||"";
+  if(key==="mengzheng"){
+    return "完整运维适配已启用：主模型 Provider、Jev 决策增强、安全设置与审计均可在本 Hub 操作。";
+  }
+  if(key==="xiaoshutong"){
+    return "基础接入已完成。已检测到 core-api / worker / parent-web 云端架构和独立模型运行参数；Provider 控制面将按小书童自己的运行环境接入，不复用蒙正 Vault 密钥。";
+  }
+  if(key==="fuzipartner"){
+    return "基础接入已完成。当前以 Android 本地能力为主，没有独立云端 Provider 控制面；下一层接入 CI、版本与发布健康状态。";
+  }
+  if(key==="jev-chat-jarvis"){
+    return "基础接入已完成。当前 Judge / Reply / Vision Provider 仍由 Android 设备端设置管理；后续先建立独立服务端代理/控制面，再逐步移除设备端 Key，避免切换期间断服。";
+  }
+  return "项目已注册到统一认证、RBAC 与审计体系；项目专属运维适配待接入。";
+}
+
+function renderProjectSelection(){
+  const project=membershipFor();
+  if(!project)return;
+
+  $("roleBadge").textContent="角色 · "+String(project.role||"-");
+  $("projectRepo").value=String(project.repository_full_name||"-");
+  $("projectBranch").value=String(project.default_branch||"-");
+  $("projectType").value=String(project.project_type||"-");
+  $("projectCapabilities").value=capabilitySummary(project.capabilities);
+  $("projectIntegrationNote").textContent=projectIntegrationMessage(project);
+
+  const isMengzheng=selectedProjectKey==="mengzheng";
+  for(const id of ["mengzhengModelPresets","mengzhengProviderConfig","mengzhengJevConfig"]){
+    $(id).classList.toggle("hidden",!isMengzheng);
+  }
+}
+
 function applyOpsStatus(status){
   opsAuthStatus=status||{};
-  const memberships=Array.isArray(status?.memberships)?status.memberships:[];
-  const membership=memberships.find(x=>x?.project_key==="mengzheng")||memberships[0]||{};
-  $("roleBadge").textContent=membership.role?("角色 · "+membership.role):"已授权";
+  opsMemberships=Array.isArray(status?.memberships)?status.memberships:[];
+  if(!opsMemberships.length)return;
+
+  const select=$("projectSelect");
+  select.replaceChildren();
+  for(const project of opsMemberships){
+    const option=document.createElement("option");
+    option.value=String(project.project_key||"");
+    option.textContent=String(project.display_name||project.project_key||"项目");
+    select.appendChild(option);
+  }
+
+  const saved=sessionStorage.getItem("mz_ops_project")||selectedProjectKey;
+  selectedProjectKey=opsMemberships.some(p=>p?.project_key===saved)
+    ?saved
+    :opsMemberships.some(p=>p?.project_key==="mengzheng")
+      ?"mengzheng"
+      :String(opsMemberships[0].project_key||"");
+  select.value=selectedProjectKey;
+  select.disabled=opsMemberships.length<=1;
+  sessionStorage.setItem("mz_ops_project",selectedProjectKey);
+
   $("mfaSessionState").value=status?.aal==="aal2"
     ?"aal2 · MFA 已验证"
     :"aal1 · 需要二次验证";
+  renderProjectSelection();
 }
 
-async function api(action,method="GET",body=null){
-  const response=await fetch(FN+"?action="+encodeURIComponent(action),{
+async function api(action,method="GET",body=null,query={}){
+  const params=new URLSearchParams({action:String(action||"")});
+  for(const [key,value] of Object.entries(query||{})){
+    if(value!==undefined&&value!==null&&String(value)!=="")params.set(key,String(value));
+  }
+  const response=await fetch(FN+"?"+params.toString(),{
     method,
     headers:{
       Authorization:"Bearer "+token,
@@ -610,7 +691,7 @@ async function verifyMfa(){
     applyOpsStatus(status);
     $("mfaStatus").className="status top-gap ok";
     $("mfaStatus").textContent=mfaMode==="enroll"?"TOTP 已绑定并验证。":"二次验证通过。";
-    await loadConfig();
+    await enterOperationsHub();
   }catch(error){
     $("mfaStatus").className="status top-gap bad";
     $("mfaStatus").textContent="验证失败："+error.message;
@@ -790,7 +871,7 @@ function renderAudit(events){
 
 async function loadAudit(){
   try{
-    const value=await api("audit");
+    const value=await api("audit","GET",null,{project:selectedProjectKey});
     renderAudit(value.events||[]);
   }catch(error){
     $("auditLog").textContent=error.code==="ACCESS_DENIED"
@@ -799,14 +880,66 @@ async function loadAudit(){
   }
 }
 
+async function loadMengzhengConfig(){
+  const value=await api("config");
+  const cfg=value.config;
+  keyStates=cfg.api_key_states||{};
+
+  $("provider").value=PROVIDERS[cfg.provider]?cfg.provider:"openai_compatible";
+  $("api_style").value=cfg.api_style;
+  syncApiStyleAvailability();
+  if(cfg.api_style&&Array.from($("api_style").options).some(o=>o.value===cfg.api_style&&!o.disabled)){
+    $("api_style").value=cfg.api_style;
+  }
+  $("base_url").value=cfg.base_url||"";
+  syncBaseUrl({force:false});
+  $("base_url").value=cfg.base_url||$("base_url").value;
+  populateModelOptions(cfg.model||"");
+  syncThinkingControl(cfg.thinking_mode||providerConfig().default_thinking);
+  $("timeout_ms").value=cfg.timeout_ms;
+  $("repairs").value=cfg.max_repair_attempts;
+  $("enabled").value=String(cfg.enabled);
+  $("api_key").value="";
+  $("activeBadge").textContent=(cfg.provider||"-")+" / "+(cfg.model||"-");
+  refreshDraft();
+  showHealth(cfg);
+  loadDecisionConfig().catch(error=>{
+    $("jevHealth").className="status top-gap bad";
+    $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
+  });
+}
+
+async function applyProjectSelection(){
+  const project=membershipFor();
+  if(!project)return;
+  sessionStorage.setItem("mz_ops_project",selectedProjectKey);
+  $("projectSelect").value=selectedProjectKey;
+  renderProjectSelection();
+  $("auditLog").textContent="正在加载 "+String(project.display_name||selectedProjectKey)+" 审计…";
+  await loadAudit();
+  if(selectedProjectKey==="mengzheng"){
+    await loadMengzhengConfig();
+  }
+}
+
+async function enterOperationsHub(){
+  setAuthStage("console");
+  if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
+  await loadSecuritySettings().catch(error=>{
+    $("securityStatus").className="status top-gap bad";
+    $("securityStatus").textContent="安全状态加载失败："+error.message;
+  });
+  await applyProjectSelection();
+}
+
 async function bootstrapAuthenticatedSession(){
   const status=await api("auth_status");
   applyOpsStatus(status);
-  if(status.aal!=="aal2"){
+  if(status.needs_mfa===true||status.aal!=="aal2"&&status.mfa_exempt!==true){
     await prepareMfa();
     return;
   }
-  await loadConfig();
+  await enterOperationsHub();
 }
 
 async function signIn(){
@@ -839,39 +972,8 @@ async function signIn(){
 }
 
 async function loadConfig(){
-  const value=await api("config");
-  const cfg=value.config;
-  keyStates=cfg.api_key_states||{};
-  setAuthStage("console");
-  if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
-
-  $("provider").value=PROVIDERS[cfg.provider]?cfg.provider:"openai_compatible";
-  $("api_style").value=cfg.api_style;
-  syncApiStyleAvailability();
-  if(cfg.api_style&&Array.from($("api_style").options).some(o=>o.value===cfg.api_style&&!o.disabled)){
-    $("api_style").value=cfg.api_style;
-  }
-  $("base_url").value=cfg.base_url||"";
-  syncBaseUrl({force:false});
-  $("base_url").value=cfg.base_url||$("base_url").value;
-  populateModelOptions(cfg.model||"");
-  syncThinkingControl(cfg.thinking_mode||providerConfig().default_thinking);
-  $("timeout_ms").value=cfg.timeout_ms;
-  $("repairs").value=cfg.max_repair_attempts;
-  $("enabled").value=String(cfg.enabled);
-  $("api_key").value="";
-  $("activeBadge").textContent=(cfg.provider||"-")+" / "+(cfg.model||"-");
-  refreshDraft();
-  showHealth(cfg);
-  loadDecisionConfig().catch(error=>{
-    $("jevHealth").className="status top-gap bad";
-    $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
-  });
-  loadAudit();
-  loadSecuritySettings().catch(error=>{
-    $("securityStatus").className="status top-gap bad";
-    $("securityStatus").textContent="安全状态加载失败："+error.message;
-  });
+  if(selectedProjectKey!=="mengzheng")return;
+  await loadMengzhengConfig();
 }
 
 async function save(){
@@ -905,6 +1007,7 @@ function logout(){
   sessionStorage.removeItem("mz_ai_admin_token");
   token="";
   opsAuthStatus=null;
+  opsMemberships=[];
   mfaFactorId="";
   mfaMode="";
   backupTotpFactorId="";
@@ -975,6 +1078,14 @@ $("reloadBtn").addEventListener("click",()=>loadConfig().catch(error=>alert(erro
 $("jevSaveBtn").addEventListener("click",saveDecision);
 $("jevTestBtn").addEventListener("click",testDecision);
 $("jevReloadBtn").addEventListener("click",()=>loadDecisionConfig().catch(error=>alert(error.message)));
+$("projectSelect").addEventListener("change",()=>{
+  const next=$("projectSelect").value;
+  if(!opsMemberships.some(p=>p?.project_key===next))return;
+  selectedProjectKey=next;
+  applyProjectSelection().catch(error=>{
+    $("projectIntegrationNote").textContent="项目切换失败："+error.message;
+  });
+});
 $("auditReloadBtn").addEventListener("click",loadAudit);
 $("securityReloadBtn").addEventListener("click",()=>loadSecuritySettings().catch(error=>{
   $("securityStatus").className="status top-gap bad";
@@ -1009,6 +1120,7 @@ $("backupTotpCopyBtn").addEventListener("click",async()=>{
   }
 });
 $("logoutBtn").addEventListener("click",logout);
+$("opsLogoutBtn").addEventListener("click",logout);
 
 if(token){
   bootstrapAuthenticatedSession().catch(error=>{
