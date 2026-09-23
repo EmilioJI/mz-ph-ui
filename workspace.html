@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://ibshmenzooxndneqwqht.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<title>蒙正 · 工作区</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="wrap">
+  <header id="workspaceHero" class="hero">
+    <div>
+      <div class="eyebrow">蒙正</div>
+      <h1>工作区</h1>
+      <p>此区域需要授权身份。未通过验证时不会读取或展示内部配置。</p>
+    </div>
+    <div class="hero-badge">Restricted</div>
+  </header>
+
+  <section id="login" class="card auth-card">
+    <h2>身份验证</h2>
+    <p class="muted">请输入已授权账号继续。</p>
+    <div class="grid top-gap">
+      <div>
+        <label for="email">账号</label>
+        <input id="email" type="email" autocomplete="username" inputmode="email">
+      </div>
+      <div>
+        <label for="password">密码</label>
+        <input id="password" type="password" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="row top-gap">
+      <button id="loginBtn">继续</button>
+      <a class="ghost-link" href="./">返回</a>
+    </div>
+  </section>
+
+  <main id="console" class="hidden">
+    <section class="console-heading">
+      <div>
+        <div class="eyebrow">蒙正规划</div>
+        <h1>AI Provider Hub</h1>
+        <p>模型、Provider 与 API Key 统一在云端管理。已保存的 Key 只存在于服务端 Vault，不在网页或 Android 中回显。</p>
+      </div>
+      <div class="hero-badge">Server-side control plane</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>模型预设</h2>
+          <p class="muted">先测试草稿配置，通过后再保存启用。</p>
+        </div>
+      </div>
+      <div class="preset-grid">
+        <button class="preset" data-preset="glm47">
+          <strong>GLM-4.7</strong><span>非思考 · 当前保底</span>
+        </button>
+        <button class="preset" data-preset="glm53flash">
+          <strong>GLM-5.3-Flash</strong><span>Thinking 必开</span>
+        </button>
+        <button class="preset" data-preset="deepseek">
+          <strong>DeepSeek Flash</strong><span>非思考 · 推荐 A/B</span>
+        </button>
+        <button class="preset" data-preset="custom">
+          <strong>Custom</strong><span>OpenAI-compatible</span>
+        </button>
+      </div>
+      <div id="policy_note" class="policy-note"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>当前 / 草稿配置</h2>
+          <p class="muted">草稿测试不会自动切换线上模型。</p>
+        </div>
+        <span id="activeBadge" class="badge">未加载</span>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="zhipuai">ZhipuAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI</option>
+            <option value="openai_compatible">OpenAI-compatible</option>
+          </select>
+        </div>
+        <div>
+          <label for="api_style">API 协议</label>
+          <select id="api_style">
+            <option value="chat_completions">Chat Completions</option>
+            <option value="responses">Responses</option>
+          </select>
+        </div>
+
+        <div class="full">
+          <label for="base_url">Base URL</label>
+          <input id="base_url" spellcheck="false">
+        </div>
+
+        <div>
+          <label for="model">模型</label>
+          <input id="model" spellcheck="false">
+        </div>
+        <div>
+          <label for="api_key">当前 Provider API Key</label>
+          <input id="api_key" type="password" autocomplete="new-password" placeholder="留空 = 保持该 Provider 已保存的 Key">
+        </div>
+
+        <div>
+          <label for="timeout_ms">Provider Timeout (ms)</label>
+          <input id="timeout_ms" type="number" min="5000" max="60000">
+        </div>
+        <div>
+          <label for="repairs">格式修复重试次数</label>
+          <input id="repairs" type="number" min="0" max="2">
+        </div>
+
+        <div>
+          <label for="thinking_mode">Thinking</label>
+          <input id="thinking_mode" readonly>
+        </div>
+        <div>
+          <label for="key_state">Key 状态</label>
+          <input id="key_state" disabled>
+        </div>
+
+        <div>
+          <label for="enabled">启用</label>
+          <select id="enabled">
+            <option value="true">启用</option>
+            <option value="false">停用</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row top-gap">
+        <button id="saveBtn">保存并启用此配置</button>
+        <button class="secondary" id="testConnBtn">测试连接</button>
+        <button class="secondary" id="testRespBtn">测试响应</button>
+        <button class="secondary" id="reloadBtn">恢复线上配置</button>
+        <button class="ghost" id="logoutBtn">退出登录</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>健康状态</h2>
+      <div id="health" class="status">尚未加载</div>
+    </section>
+  </main>
+
+  <footer>© 2026 MZ · workspace</footer>
+</div>
+<script src="./app.js" defer></script>
+</body>
+</html>
