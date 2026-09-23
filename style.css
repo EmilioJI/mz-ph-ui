@@ -74,3 +74,20 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
   .public-item{min-height:auto}
   .public-index{margin-bottom:18px}
 }
+
+
+.mfa-enroll-grid{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px;align-items:center}
+.qr-shell{display:flex;align-items:center;justify-content:center;min-height:240px;padding:18px;border:1px solid #e1d6ca;border-radius:14px;background:#fff}
+.qr-shell img{display:block;width:min(100%,260px);height:auto}
+.secret-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.ops-context{border-style:dashed}
+.audit-list{display:grid;gap:10px}
+.audit-item{border:1px solid #e5dacd;border-radius:12px;padding:12px 14px;background:#fbf8f4}
+.audit-item-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px}
+.audit-item strong{font-size:13px}
+.audit-item-meta{margin-top:6px;color:#7a6a5e;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.mfa-code-good{letter-spacing:.18em;font-variant-numeric:tabular-nums}
+@media(max-width:700px){
+  .mfa-enroll-grid{grid-template-columns:1fr}
+  .secret-row{grid-template-columns:1fr}
+}
