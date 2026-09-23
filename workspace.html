@@ -102,12 +102,15 @@
 
         <div class="full">
           <label for="base_url">Base URL</label>
-          <input id="base_url" spellcheck="false">
+          <input id="base_url" spellcheck="false" autocomplete="off">
+          <p class="field-note">标准 Provider 会按 API 协议自动切换官方端点；OpenAI-compatible 可自行填写。</p>
         </div>
 
         <div>
-          <label for="model">模型</label>
-          <input id="model" spellcheck="false">
+          <label for="model_select">模型</label>
+          <select id="model_select" aria-describedby="model_help"></select>
+          <input id="model_custom" class="model-custom hidden" spellcheck="false" autocomplete="off" placeholder="填写自定义模型 ID">
+          <p id="model_help" class="field-note">切换 Provider 后会载入对应的主流模型，也可选择“自定义模型”。</p>
         </div>
         <div>
           <label for="api_key">当前 Provider API Key</label>
