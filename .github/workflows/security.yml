@@ -22,7 +22,7 @@ jobs:
           from pathlib import Path
           import re
 
-          files = [Path("index.html"), Path("style.css"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
+          files = [Path("index.html"), Path("workspace.html"), Path("style.css"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
           text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
 
           forbidden = [
