@@ -9,12 +9,30 @@ body{margin:0;min-height:100vh;background:
   radial-gradient(circle at top right,#e9ddcb 0,transparent 32rem),
   linear-gradient(180deg,#f8f4ee 0,#f1ebe2 100%)}
 .wrap{max-width:1080px;margin:0 auto;padding:38px 20px 64px}
-.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}
+.public-body{min-height:100vh}
+.public-wrap{max-width:920px;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding-top:56px;padding-bottom:38px}
+.public-hero,.hero,.console-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}
+.brand-lockup{display:flex;align-items:center;gap:14px}
+.brand-mark{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:#684936;color:#fff;font-family:"Noto Serif SC","Songti SC",serif;font-size:24px;box-shadow:0 12px 30px rgba(65,42,26,.16)}
 .eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800;color:#8a674d}
 h1{font-family:"Noto Serif SC","Songti SC",serif;font-size:34px;line-height:1.2;margin:5px 0 8px}
-.hero p{margin:0;color:#75675c;max-width:720px;line-height:1.7}
+.public-hero h1{margin-bottom:0}
+.hero p,.console-heading p{margin:0;color:#75675c;max-width:720px;line-height:1.7}
 .hero-badge,.badge{background:#efe5d8;border:1px solid #d8c7b2;border-radius:999px;padding:7px 11px;font-size:12px;color:#5c4637;white-space:nowrap}
 .card{background:#fffdfa;border:1px solid #ddd0c0;border-radius:20px;padding:24px;margin:16px 0;box-shadow:0 16px 45px rgba(64,43,27,.07)}
+.public-card{padding:30px}
+.public-copy{max-width:650px}
+.public-copy h2{font-family:"Noto Serif SC","Songti SC",serif;font-size:24px;margin-bottom:10px}
+.public-copy p{margin:0;color:#75675c;line-height:1.8}
+.public-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:26px}
+.public-item{min-height:150px;padding:18px;border:1px solid #e2d5c6;border-radius:16px;background:#faf6f0}
+.public-index{display:block;font-size:11px;letter-spacing:.12em;color:#a28b77;margin-bottom:28px}
+.public-item strong{display:block;font-family:"Noto Serif SC","Songti SC",serif;font-size:16px;margin-bottom:8px}
+.public-item p{margin:0;color:#7a6b60;font-size:13px;line-height:1.65}
+.public-note{margin-top:18px;padding-top:18px;border-top:1px solid #e5d8ca;color:#85766b;font-size:13px}
+.public-footer{display:flex;align-items:center;justify-content:space-between;margin-top:22px;color:#9a8b80;font-size:11px;letter-spacing:.04em}
+.auth-card{max-width:760px;margin-left:auto;margin-right:auto}
+.console-heading{padding:4px 2px 2px}
 h2{font-size:18px;margin:0 0 8px}
 .muted{color:#7a6b60;font-size:13px;line-height:1.6;margin:0}
 .section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:18px}
@@ -29,6 +47,7 @@ button:hover{transform:translateY(-1px)}
 button:disabled{opacity:.5;cursor:not-allowed;transform:none}
 button.secondary{background:#e9ddcf;color:#483428}
 button.ghost{background:#f7f2ec;color:#6d5a4b;border:1px solid #d9cabb}
+.ghost-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:10px 14px;border-radius:11px;background:#f7f2ec;color:#6d5a4b;border:1px solid #d9cabb;text-decoration:none;font-size:13px;font-weight:750}
 .row{display:flex;gap:10px;flex-wrap:wrap}
 .top-gap{margin-top:18px}
 .preset-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -40,9 +59,14 @@ button.ghost{background:#f7f2ec;color:#6d5a4b;border:1px solid #d9cabb}
 .status.bad{background:#faece8;border:1px solid #e6c8c0}
 .hidden{display:none!important}
 footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
+.public-footer{margin-top:22px;text-align:initial}
 @media(max-width:780px){
-  .hero{align-items:flex-start;flex-direction:column}
-  .grid,.preset-grid{grid-template-columns:1fr}
+  .public-hero,.hero,.console-heading{align-items:flex-start;flex-direction:column}
+  .grid,.preset-grid,.public-grid{grid-template-columns:1fr}
   .full{grid-column:auto}
   .wrap{padding:24px 14px 46px}
+  .public-wrap{padding-top:32px;padding-bottom:24px}
+  .public-card{padding:22px}
+  .public-item{min-height:auto}
+  .public-index{margin-bottom:18px}
 }
