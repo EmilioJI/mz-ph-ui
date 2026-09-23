@@ -37,6 +37,15 @@ jobs:
               if marker not in workspace:
                   raise SystemExit("Operations Hub security surface missing: " + marker)
           for marker in (
+              'id="backupTotpStartBtn"',
+              'id="backupTotpQr"',
+              'id="backupTotpSecret"',
+              'id="backupTotpVerifyBtn"',
+              'id="totpFactorSummary"',
+          ):
+              if marker not in workspace:
+                  raise SystemExit("backup TOTP security surface missing: " + marker)
+          for marker in (
               '/auth/v1/factors',
               '/challenge',
               '/verify',
@@ -49,6 +58,17 @@ jobs:
                   raise SystemExit("MFA/RBAC frontend contract missing: " + marker)
           if 'sessionStorage.setItem("mfa' in app or 'localStorage' in app:
               raise SystemExit("MFA secret/session persistence boundary violated")
+          for marker in (
+              'loadSecuritySettings',
+              'startBackupTotpEnrollment',
+              'verifyBackupTotp',
+              'cleanupBackupTotp',
+              'friendly_name:"MZ Operations Hub Backup"',
+          ):
+              if marker not in app:
+                  raise SystemExit("backup TOTP behavior contract missing: " + marker)
+          if 'sessionStorage.setItem("backupTotp' in app:
+              raise SystemExit("backup TOTP secret must never persist in storage")
           if workspace.index('id="health"') > workspace.index('Jev Decision Provider'):
               raise SystemExit("primary provider test result must stay before Jev section")
           for marker in ('setProviderTestBusy', 'showProviderTestResult', '测试响应中…'):
