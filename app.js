@@ -21,6 +21,8 @@ const PROVIDERS={
       chat_completions:"https://open.bigmodel.cn/api/paas/v4/chat/completions"
     },
     default_model:"glm-4.7",
+    default_thinking:"disabled",
+    thinking_editable:true,
     models:[
       {id:"glm-4.7",label:"GLM-4.7 · 非思考默认"},
       {id:"glm-5.3-flash",label:"GLM-5.3-Flash"},
@@ -36,6 +38,8 @@ const PROVIDERS={
       responses:"https://api.deepseek.com/responses"
     },
     default_model:"deepseek-flash",
+    default_thinking:"disabled",
+    thinking_editable:true,
     models:[
       {id:"deepseek-flash",label:"DeepSeek Flash · V4.1 Flash"},
       {id:"deepseek-v4-pro",label:"DeepSeek V4 Pro"}
@@ -49,6 +53,8 @@ const PROVIDERS={
       chat_completions:"https://api.openai.com/v1/chat/completions"
     },
     default_model:"gpt-5.6-luna",
+    default_thinking:"disabled",
+    thinking_editable:true,
     models:[
       {id:"gpt-5.6-luna",label:"GPT-5.6 Luna · 成本优先"},
       {id:"gpt-5.6-terra",label:"GPT-5.6 Terra · 平衡"},
@@ -61,6 +67,8 @@ const PROVIDERS={
     supported_styles:["chat_completions","responses"],
     base_urls:{},
     default_model:"",
+    default_thinking:"provider_default",
+    thinking_editable:false,
     models:[]
   }
 };
@@ -71,6 +79,7 @@ const PRESETS={
     api_style:"chat_completions",
     base_url:"https://open.bigmodel.cn/api/paas/v4/chat/completions",
     model:"glm-4.7",
+    thinking_mode:"disabled",
     timeout_ms:40000,
     max_repair_attempts:1
   },
@@ -79,6 +88,7 @@ const PRESETS={
     api_style:"chat_completions",
     base_url:"https://open.bigmodel.cn/api/paas/v4/chat/completions",
     model:"glm-5.3-flash",
+    thinking_mode:"enabled",
     timeout_ms:60000,
     max_repair_attempts:1
   },
@@ -87,6 +97,7 @@ const PRESETS={
     api_style:"chat_completions",
     base_url:"https://api.deepseek.com/chat/completions",
     model:"deepseek-flash",
+    thinking_mode:"disabled",
     timeout_ms:40000,
     max_repair_attempts:1
   },
@@ -95,6 +106,7 @@ const PRESETS={
     api_style:"chat_completions",
     base_url:"",
     model:"",
+    thinking_mode:"provider_default",
     timeout_ms:40000,
     max_repair_attempts:1
   }
@@ -102,6 +114,34 @@ const PRESETS={
 
 function providerConfig(){
   return PROVIDERS[$("provider").value]||PROVIDERS.openai_compatible;
+}
+
+function isGlm53Flash(model=selectedModel()){
+  const value=String(model||"").trim().toLowerCase();
+  return value==="glm-5.3-flash"||value==="glm-5.3-flashx";
+}
+
+function syncThinkingControl(preferredMode=null){
+  const provider=$("provider").value;
+  const config=providerConfig();
+  const select=$("thinking_mode");
+  const help=$("thinking_help");
+  let mode=preferredMode||select.value||config.default_thinking||"disabled";
+
+  if(provider==="zhipuai"&&isGlm53Flash()){
+    mode="enabled";
+    select.disabled=true;
+    help.textContent="当前模型强制开启 Thinking，无法关闭。";
+  }else if(!config.thinking_editable){
+    mode="provider_default";
+    select.disabled=true;
+    help.textContent="该兼容 Provider 的思考参数不统一，交由供应商默认处理。";
+  }else{
+    select.disabled=false;
+    if(!["disabled","enabled","provider_default"].includes(mode))mode=config.default_thinking||"disabled";
+    help.textContent="默认关闭；可手动开启，或交由供应商默认处理。";
+  }
+  select.value=mode;
 }
 
 function selectedModel(){
@@ -173,6 +213,7 @@ function applyProviderDefaults(){
   syncApiStyleAvailability();
   syncBaseUrl({force:true});
   populateModelOptions(config.default_model);
+  syncThinkingControl(config.default_thinking);
   $("api_key").value="";
   refreshDraft();
 }
@@ -183,6 +224,7 @@ function payload(){
     api_style:$("api_style").value,
     base_url:$("base_url").value.trim(),
     model:selectedModel(),
+    thinking_mode:$("thinking_mode").value,
     api_key:$("api_key").value.trim(),
     timeout_ms:Number($("timeout_ms").value),
     max_repair_attempts:Number($("repairs").value),
@@ -197,24 +239,18 @@ function validatePayload(value){
   return value;
 }
 
-function effectiveThinking(){
-  const provider=$("provider").value;
-  const model=selectedModel().toLowerCase();
-  if(provider==="zhipuai"&&(model==="glm-5.3-flash"||model==="glm-5.3-flashx"))return"enabled_required";
-  if(provider==="zhipuai"||provider==="deepseek")return"disabled";
-  return"provider_default";
-}
-
 function refreshDraft(){
-  const mode=effectiveThinking();
-  $("thinking_mode").value=mode;
-  $("key_state").value=keyStates[$("provider").value]?"已配置（不回显）":"未配置";
+  syncThinkingControl();
+  const mode=$("thinking_mode").value;
+  $("key_state").value=keyStates[$("provider").value]?"已保存到 Vault（不回显）":"尚未保存";
   $("policy_note").textContent=
-    mode==="enabled_required"
-      ?"GLM-5.3-Flash 当前模型策略要求 Thinking；适合高能力模式，不适合作为省 reasoning token 的默认线路。"
+    $("thinking_mode").disabled&&mode==="enabled"
+      ?"当前模型强制开启 Thinking；这是模型约束，不是可选设置。"
       :mode==="disabled"
-        ?"当前系统策略关闭 Thinking，适合结构化规划任务控制 token 与延迟。"
-        :"Thinking 由目标 Provider 与后端适配策略决定。";
+        ?"Thinking 已关闭：优先降低 reasoning token 与延迟。"
+        :mode==="enabled"
+          ?"Thinking 已开启：可能提高复杂任务质量，同时增加延迟与 token 消耗。"
+          :"Thinking 使用供应商默认行为。";
 }
 
 function applyPreset(name){
@@ -227,6 +263,7 @@ function applyPreset(name){
   syncBaseUrl({force:true});
   $("base_url").value=p.base_url;
   populateModelOptions(p.model);
+  syncThinkingControl(p.thinking_mode);
   $("timeout_ms").value=p.timeout_ms;
   $("repairs").value=p.max_repair_attempts;
   $("enabled").value="true";
@@ -312,6 +349,7 @@ async function loadConfig(){
   syncBaseUrl({force:false});
   $("base_url").value=c.base_url||$("base_url").value;
   populateModelOptions(c.model||"");
+  syncThinkingControl(c.thinking_mode||providerConfig().default_thinking);
   $("timeout_ms").value=c.timeout_ms;
   $("repairs").value=c.max_repair_attempts;
   $("enabled").value=String(c.enabled);
@@ -329,7 +367,6 @@ async function save(){
     await loadConfig();
     alert("已保存并启用");
   }catch(error){
-    $("api_key").value="";
     alert(error.message);
   }
 }
@@ -338,12 +375,10 @@ async function testProvider(mode){
   try{
     const value=validatePayload(payload());
     const result=await api("test","POST",{...value,mode});
-    $("api_key").value="";
     const node=$("health");
     node.className="status "+(result.result.ok?"ok":"bad");
     node.textContent=JSON.stringify(result.result,null,2);
   }catch(error){
-    $("api_key").value="";
     alert(error.message);
   }
 }
@@ -368,9 +403,11 @@ $("model_select").addEventListener("change",()=>{
   const custom=$("model_select").value===CUSTOM_MODEL;
   $("model_custom").classList.toggle("hidden",!custom);
   if(custom)$("model_custom").focus();
+  syncThinkingControl();
   refreshDraft();
 });
-$("model_custom").addEventListener("input",refreshDraft);
+$("model_custom").addEventListener("input",()=>{syncThinkingControl();refreshDraft();});
+$("thinking_mode").addEventListener("change",refreshDraft);
 $("base_url").addEventListener("input",refreshDraft);
 
 $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.message)));
