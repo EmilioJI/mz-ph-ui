@@ -47,6 +47,9 @@ jobs:
           ):
               if marker not in workspace:
                   raise SystemExit("multi-project Operations Hub surface missing: " + marker)
+          for marker in ('id="projectStatusSnapshot"', 'id="projectStatusSource"'):
+              if marker not in workspace:
+                  raise SystemExit("project evidence status surface missing: " + marker)
           for marker in (
               'id="projectRuntimeConfig"',
               'id="runtimeConfigFields"',
@@ -100,6 +103,9 @@ jobs:
           ):
               if marker not in app:
                   raise SystemExit("multi-project isolation contract missing: " + marker)
+          for marker in ('projectStatusSnapshot', 'projectStatusSource', 'status_snapshot', 'status_source'):
+              if marker not in app:
+                  raise SystemExit("project evidence rendering contract missing: " + marker)
           for marker in (
               'loadProjectRuntimeConfig',
               'saveProjectRuntimeConfig',
