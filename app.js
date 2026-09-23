@@ -126,7 +126,7 @@ async function api(action,method="GET",body=null){
     sessionStorage.removeItem("mz_ai_admin_token");
     token="";
     setAuthenticated(false);
-    throw new Error("无管理员权限或登录已失效");
+    throw new Error("身份验证失败或会话已失效");
   }
   if(!response.ok)throw new Error(value.error||"请求失败");
   return value;
@@ -136,7 +136,7 @@ async function signIn(){
   const email=$("email").value.trim();
   const password=$("password").value;
   if(!email||!password){
-    alert("请输入管理员邮箱和密码");
+    alert("请输入账号和密码");
     return;
   }
   const response=await fetch(BASE+"/auth/v1/token?grant_type=password",{
@@ -147,7 +147,7 @@ async function signIn(){
   const value=await response.json();
   $("password").value="";
   if(!response.ok||!value.access_token){
-    alert("登录失败");
+    alert("身份验证失败");
     return;
   }
   token=value.access_token;
