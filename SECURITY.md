@@ -10,6 +10,6 @@ It must never contain:
 - private application source code;
 - private user data.
 
-Authentication and authorization are enforced server-side. Saved provider keys are stored only in the backend Vault and are never returned to this frontend.
+The public root is a neutral project page and does not load the operational console script. That reduces casual discoverability only; it is not a security boundary. Authentication and authorization are enforced server-side. Saved provider keys are stored only in the backend Vault and are never returned to this frontend.
 
 Copyright © 2026. All rights reserved. No license is granted for reuse, modification, or redistribution.
