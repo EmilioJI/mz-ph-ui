@@ -501,13 +501,13 @@ function projectIntegrationMessage(project){
     return "完整运维适配已启用：主模型 Provider、Jev 决策增强、安全设置与审计均可在本 Hub 操作。";
   }
   if(key==="xiaoshutong"){
-    return "基础接入已完成。已检测到 core-api / worker / parent-web 云端架构和独立模型运行参数；Provider 控制面将按小书童自己的运行环境接入，不复用蒙正 Vault 密钥。";
+    return "基础接入 + staged 配置仓已完成。已映射 core-api 的 XST_* 模型/OCR/ASR/TTS 合同，Key 使用小书童独立 Vault 命名空间；当前尚未接管运行时。";
   }
   if(key==="fuzipartner"){
     return "基础接入已完成。当前以 Android 本地能力为主，没有独立云端 Provider 控制面；下一层接入 CI、版本与发布健康状态。";
   }
   if(key==="jev-chat-jarvis"){
-    return "基础接入已完成。当前 Judge / Reply / Vision Provider 仍由 Android 设备端设置管理；后续先建立独立服务端代理/控制面，再逐步移除设备端 Key，避免切换期间断服。";
+    return "基础接入 + staged 配置仓已完成。Judge / Reply / Vision 已独立建模并使用 JEV 专属 Vault；Android 当前仍读取设备端设置，尚未切换到云端接管。";
   }
   return "项目已注册到统一认证、RBAC 与审计体系；项目专属运维适配待接入。";
 }
@@ -782,6 +782,17 @@ function renderProjectSelection(){
   $("projectType").value=String(project.project_type||"-");
   $("projectCapabilities").value=capabilitySummary(project.capabilities);
   $("projectIntegrationNote").textContent=projectIntegrationMessage(project);
+
+  const snapshot=project.status_snapshot&&typeof project.status_snapshot==="object"
+    ?project.status_snapshot:{};
+  const snapshotEntries=Object.entries(snapshot);
+  $("projectStatusSnapshot").textContent=snapshotEntries.length
+    ?snapshotEntries.map(([key,value])=>key+": "+String(value)).join("\n")
+    :"项目状态快照：尚未提供";
+  $("projectStatusSource").textContent=project.status_source
+    ?("证据来源："+String(project.status_source)
+      +(project.status_updated_at?" · "+new Date(project.status_updated_at).toLocaleString():""))
+    :"";
 
   const isMengzheng=selectedProjectKey==="mengzheng";
   for(const id of ["mengzhengModelPresets","mengzhengProviderConfig","mengzhengJevConfig"]){
