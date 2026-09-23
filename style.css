@@ -35,6 +35,8 @@ h1{font-family:"Noto Serif SC","Songti SC",serif;font-size:34px;line-height:1.2;
 .console-heading{padding:4px 2px 2px}
 h2{font-size:18px;margin:0 0 8px}
 .muted{color:#7a6b60;font-size:13px;line-height:1.6;margin:0}
+.field-note{margin:7px 0 0;color:#8a7b70;font-size:11px;line-height:1.55}
+.model-custom{margin-top:8px}
 .section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .full{grid-column:1/-1}
