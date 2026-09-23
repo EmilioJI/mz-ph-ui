@@ -98,7 +98,7 @@ jobs:
               'renderProjectSelection',
               '{project:selectedProjectKey}',
               'selectedProjectKey==="mengzheng"',
-              'core-api / worker / parent-web',
+              'XST_*',
               'Judge / Reply / Vision Provider',
           ):
               if marker not in app:
