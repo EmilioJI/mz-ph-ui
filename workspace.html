@@ -128,11 +128,17 @@
 
         <div>
           <label for="thinking_mode">Thinking</label>
-          <input id="thinking_mode" readonly>
+          <select id="thinking_mode" aria-describedby="thinking_help">
+            <option value="disabled">disabled · 关闭思考</option>
+            <option value="enabled">enabled · 开启思考</option>
+            <option value="provider_default">provider default · 供应商默认</option>
+          </select>
+          <p id="thinking_help" class="field-note">默认关闭；个别模型可能强制开启。</p>
         </div>
         <div>
-          <label for="key_state">Key 状态</label>
+          <label for="key_state">已保存密钥状态</label>
           <input id="key_state" disabled>
+          <p class="field-note">仅显示服务端 Vault 是否已有该 Provider 的 Key；已保存密钥永不回显。</p>
         </div>
 
         <div>
