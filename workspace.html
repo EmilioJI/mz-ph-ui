@@ -114,6 +114,63 @@
     <section class="card">
       <div class="section-title">
         <div>
+          <h2>安全设置</h2>
+          <p class="muted">当前运维控制面强制使用 MFA。建议至少绑定 2 个独立 TOTP 验证器，分别保存在不同设备。</p>
+        </div>
+        <span id="totpFactorBadge" class="badge">检查中</span>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="mfaPolicyState">MFA 策略</label>
+          <input id="mfaPolicyState" value="强制 · aal2" disabled>
+        </div>
+        <div>
+          <label for="totpFactorSummary">已验证 TOTP 因子</label>
+          <input id="totpFactorSummary" value="检查中" disabled>
+        </div>
+      </div>
+
+      <div id="backupTotpAdvice" class="policy-note">
+        正在检查验证器数量…
+      </div>
+
+      <div class="row top-gap">
+        <button id="backupTotpStartBtn" class="secondary" type="button">添加备用验证器</button>
+        <button id="securityReloadBtn" class="ghost" type="button">刷新安全状态</button>
+      </div>
+
+      <div id="backupTotpPanel" class="hidden top-gap">
+        <div class="mfa-enroll-grid">
+          <div class="qr-shell">
+            <img id="backupTotpQr" alt="备用 TOTP 二维码">
+          </div>
+          <div>
+            <h3>绑定备用验证器</h3>
+            <p class="muted">请使用另一台设备或独立验证器配置扫码。验证成功前不会成为有效 MFA 因子。</p>
+            <label for="backupTotpSecret">手工密钥</label>
+            <div class="secret-row">
+              <input id="backupTotpSecret" readonly autocomplete="off">
+              <button class="secondary" id="backupTotpCopyBtn" type="button">复制</button>
+            </div>
+            <div class="top-gap">
+              <label for="backupTotpCode">动态验证码</label>
+              <input id="backupTotpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000">
+            </div>
+            <div class="row top-gap">
+              <button id="backupTotpVerifyBtn" type="button">验证并添加</button>
+              <button id="backupTotpCancelBtn" class="ghost" type="button">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="securityStatus" class="status top-gap">尚未加载</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
           <h2>模型预设</h2>
           <p class="muted">先测试草稿配置，通过后再保存启用。</p>
         </div>
