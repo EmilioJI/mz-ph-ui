@@ -108,6 +108,7 @@ function showHealth(x){
 }
 
 function setAuthenticated(authenticated){
+  $("workspaceHero")?.classList.toggle("hidden",authenticated);
   $("login").classList.toggle("hidden",authenticated);
   $("console").classList.toggle("hidden",!authenticated);
 }
