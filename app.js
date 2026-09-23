@@ -242,7 +242,12 @@ function validatePayload(value){
 function refreshDraft(){
   syncThinkingControl();
   const mode=$("thinking_mode").value;
-  $("key_state").value=keyStates[$("provider").value]?"已保存到 Vault（不回显）":"尚未保存";
+  const typedKey=$("api_key").value.trim();
+  $("key_state").value=typedKey
+    ?"已输入新 Key（尚未保存）"
+    :keyStates[$("provider").value]
+      ?"已保存到 Vault（不回显）"
+      :"尚未保存";
   $("policy_note").textContent=
     $("thinking_mode").disabled&&mode==="enabled"
       ?"当前模型强制开启 Thinking；这是模型约束，不是可选设置。"
@@ -408,6 +413,7 @@ $("model_select").addEventListener("change",()=>{
 });
 $("model_custom").addEventListener("input",()=>{syncThinkingControl();refreshDraft();});
 $("thinking_mode").addEventListener("change",refreshDraft);
+$("api_key").addEventListener("input",refreshDraft);
 $("base_url").addEventListener("input",refreshDraft);
 
 $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.message)));
