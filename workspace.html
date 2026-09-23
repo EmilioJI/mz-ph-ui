@@ -160,6 +160,66 @@
     </section>
 
     <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>Jev Decision Provider</h2>
+          <p class="muted">独立的结构化决策增强，不替代 DeepSeek / GLM 主规划模型。</p>
+        </div>
+        <span id="jevBadge" class="badge">未加载</span>
+      </div>
+
+      <div class="policy-note">
+        Jev 是可选增强层。关闭时不会产生任何 Jev 调用；开启后若 Jev 超时、限流、密钥失效或服务不可用，主规划链路继续运行，不因 Jev 失败而阻塞。
+      </div>
+
+      <div class="grid top-gap">
+        <div>
+          <label for="jev_enabled">Jev 决策增强</label>
+          <select id="jev_enabled">
+            <option value="false">关闭 · 不调用 Jev</option>
+            <option value="true">开启 · 允许决策增强</option>
+          </select>
+        </div>
+        <div>
+          <label for="jev_failure_policy">故障策略</label>
+          <input id="jev_failure_policy" value="fail-open · Jev 失败不阻塞主规划" disabled>
+        </div>
+
+        <div class="full">
+          <label for="jev_base_url">Service URL</label>
+          <input id="jev_base_url" value="https://jev.bocha.cn/v1/systemone" readonly>
+        </div>
+
+        <div>
+          <label for="jev_model">模型</label>
+          <input id="jev_model" value="bocha-jev-v1" spellcheck="false" autocomplete="off">
+        </div>
+        <div>
+          <label for="jev_api_key">Bocha Jev API Key</label>
+          <input id="jev_api_key" type="password" autocomplete="new-password" placeholder="留空 = 保持已保存的 Jev Key">
+        </div>
+
+        <div>
+          <label for="jev_timeout_ms">Jev Timeout (ms)</label>
+          <input id="jev_timeout_ms" type="number" min="3000" max="60000" value="15000">
+        </div>
+        <div>
+          <label for="jev_key_state">已保存密钥状态</label>
+          <input id="jev_key_state" disabled>
+          <p class="field-note">Jev Key 独立存储在 Vault，不与主 LLM Provider 共用。</p>
+        </div>
+      </div>
+
+      <div class="row top-gap">
+        <button id="jevSaveBtn">保存 Jev 配置</button>
+        <button class="secondary" id="jevTestBtn">测试 Jev 决策接口</button>
+        <button class="secondary" id="jevReloadBtn">恢复 Jev 配置</button>
+      </div>
+
+      <div id="jevHealth" class="status top-gap">尚未测试</div>
+    </section>
+
+    <section class="card">
       <h2>健康状态</h2>
       <div id="health" class="status">尚未加载</div>
     </section>
