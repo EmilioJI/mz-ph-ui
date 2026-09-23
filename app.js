@@ -11,6 +11,9 @@ const FN=BASE+"/functions/v1/p2-ai-provider-admin";
 let token=sessionStorage.getItem("mz_ai_admin_token")||"";
 let keyStates={};
 let decisionKeyConfigured=false;
+let opsAuthStatus=null;
+let mfaFactorId="";
+let mfaMode="";
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -427,10 +430,54 @@ async function testDecision(){
   }
 }
 
+function setAuthStage(stage){
+  const login=stage==="login",mfa=stage==="mfa",consoleOpen=stage==="console";
+  $("workspaceHero")?.classList.toggle("hidden",!login);
+  $("login").classList.toggle("hidden",!login);
+  $("mfa").classList.toggle("hidden",!mfa);
+  $("console").classList.toggle("hidden",!consoleOpen);
+}
+
 function setAuthenticated(authenticated){
-  $("workspaceHero")?.classList.toggle("hidden",authenticated);
-  $("login").classList.toggle("hidden",authenticated);
-  $("console").classList.toggle("hidden",!authenticated);
+  setAuthStage(authenticated?"console":"login");
+}
+
+async function authApi(path,method="GET",body=null){
+  const response=await fetch(BASE+path,{
+    method,
+    headers:{
+      apikey:PUB,
+      Authorization:"Bearer "+token,
+      "Content-Type":"application/json",
+      "Accept":"application/json"
+    },
+    body:body?JSON.stringify(body):null
+  });
+  let value={};
+  try{value=await response.json()}catch(_e){}
+  if(!response.ok){
+    const error=new Error(value?.msg||value?.message||value?.error_description||value?.error||"认证请求失败");
+    error.status=response.status;
+    throw error;
+  }
+  return value;
+}
+
+function qrDataUri(raw){
+  const value=String(raw||"").trim();
+  if(!value)return "";
+  if(value.startsWith("data:image/"))return value;
+  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(value);
+}
+
+function applyOpsStatus(status){
+  opsAuthStatus=status||{};
+  const memberships=Array.isArray(status?.memberships)?status.memberships:[];
+  const membership=memberships.find(x=>x?.project_key==="mengzheng")||memberships[0]||{};
+  $("roleBadge").textContent=membership.role?("角色 · "+membership.role):"已授权";
+  $("mfaSessionState").value=status?.aal==="aal2"
+    ?"aal2 · MFA 已验证"
+    :"aal1 · 需要二次验证";
 }
 
 async function api(action,method="GET",body=null){
@@ -442,15 +489,186 @@ async function api(action,method="GET",body=null){
     },
     body:body?JSON.stringify(body):null
   });
-  const value=await response.json();
-  if(response.status===401||response.status===403){
+  let value={};
+  try{value=await response.json()}catch(_e){}
+  if(response.status===401){
     sessionStorage.removeItem("mz_ai_admin_token");
     token="";
-    setAuthenticated(false);
-    throw new Error("身份验证失败或会话已失效");
+    setAuthStage("login");
+    const error=new Error("身份验证失败或会话已失效");
+    error.code="AUTH_REQUIRED";
+    throw error;
   }
-  if(!response.ok)throw new Error(value.error||"请求失败");
+  if(!response.ok){
+    const error=new Error(value.error||"请求失败");
+    error.code=value.code||"REQUEST_FAILED";
+    error.status=response.status;
+    if(error.code==="MFA_REQUIRED"){
+      setAuthStage("mfa");
+      prepareMfa().catch(mfaError=>{
+        $("mfaStatus").className="status top-gap bad";
+        $("mfaStatus").textContent="无法启动二次验证："+mfaError.message;
+      });
+    }
+    throw error;
+  }
   return value;
+}
+
+async function prepareMfa(){
+  setAuthStage("mfa");
+  $("mfaStatus").className="status top-gap";
+  $("mfaStatus").textContent="正在检查验证器…";
+  $("mfaCode").value="";
+  $("mfaEnroll").classList.add("hidden");
+  $("mfaQr").removeAttribute("src");
+  $("mfaSecret").value="";
+  mfaFactorId="";
+  mfaMode="";
+
+  const user=await authApi("/auth/v1/user");
+  const factors=Array.isArray(user?.factors)?user.factors:[];
+  const verified=factors.find(f=>f?.factor_type==="totp"&&f?.status==="verified");
+
+  if(verified?.id){
+    mfaFactorId=verified.id;
+    mfaMode="challenge";
+    $("mfaBadge").textContent="TOTP";
+    $("mfaInstruction").textContent="请输入验证器 App 当前显示的动态验证码。";
+    $("mfaVerifyBtn").textContent="验证并进入";
+    $("mfaStatus").textContent="已找到已绑定的 TOTP 验证器。";
+    $("mfaCode").focus();
+    return;
+  }
+
+  for(const factor of factors){
+    if(factor?.factor_type==="totp"&&factor?.status==="unverified"&&factor?.id){
+      try{await authApi("/auth/v1/factors/"+encodeURIComponent(factor.id),"DELETE")}catch(_e){}
+    }
+  }
+
+  const enrolled=await authApi("/auth/v1/factors","POST",{
+    friendly_name:"MZ Operations Hub",
+    factor_type:"totp",
+    issuer:"MZ Operations Hub"
+  });
+  if(!enrolled?.id||!enrolled?.totp?.secret)throw new Error("TOTP 绑定初始化失败");
+
+  mfaFactorId=enrolled.id;
+  mfaMode="enroll";
+  $("mfaBadge").textContent="首次绑定";
+  $("mfaInstruction").textContent="这是首次绑定。请先扫描二维码，再输入验证器 App 生成的动态验证码。";
+  $("mfaEnroll").classList.remove("hidden");
+  $("mfaQr").src=qrDataUri(enrolled.totp.qr_code);
+  $("mfaSecret").value=String(enrolled.totp.secret||"");
+  $("mfaVerifyBtn").textContent="完成绑定并进入";
+  $("mfaStatus").textContent="二维码已生成；密钥只用于本次绑定。";
+  $("mfaCode").focus();
+}
+
+async function verifyMfa(){
+  const code=$("mfaCode").value.replace(/\s+/g,"").trim();
+  if(!/^\d{6,8}$/.test(code)){
+    $("mfaStatus").className="status top-gap bad";
+    $("mfaStatus").textContent="请输入验证器 App 中的 6–8 位数字验证码。";
+    return;
+  }
+  if(!mfaFactorId){
+    await prepareMfa();
+    return;
+  }
+
+  const button=$("mfaVerifyBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="验证中…";
+  $("mfaStatus").className="status top-gap";
+  $("mfaStatus").textContent="正在验证第二因素…";
+
+  try{
+    const challenge=await authApi(
+      "/auth/v1/factors/"+encodeURIComponent(mfaFactorId)+"/challenge",
+      "POST",
+      {factorId:mfaFactorId}
+    );
+    if(!challenge?.id)throw new Error("无法创建 MFA challenge");
+
+    const verified=await authApi(
+      "/auth/v1/factors/"+encodeURIComponent(mfaFactorId)+"/verify",
+      "POST",
+      {challenge_id:challenge.id,code}
+    );
+    const elevatedToken=verified?.access_token||verified?.session?.access_token||"";
+    if(!elevatedToken)throw new Error("MFA 验证成功但未返回安全会话");
+
+    token=elevatedToken;
+    sessionStorage.setItem("mz_ai_admin_token",token);
+    const status=await api("auth_status");
+    if(status.aal!=="aal2")throw new Error("安全会话未提升到 aal2");
+
+    applyOpsStatus(status);
+    $("mfaStatus").className="status top-gap ok";
+    $("mfaStatus").textContent=mfaMode==="enroll"?"TOTP 已绑定并验证。":"二次验证通过。";
+    await loadConfig();
+  }catch(error){
+    $("mfaStatus").className="status top-gap bad";
+    $("mfaStatus").textContent="验证失败："+error.message;
+    $("mfaCode").select();
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
+function renderAudit(events){
+  const root=$("auditLog");
+  root.replaceChildren();
+  if(!Array.isArray(events)||events.length===0){
+    root.textContent="暂无审计记录";
+    return;
+  }
+  for(const event of events){
+    const item=document.createElement("div");
+    item.className="audit-item";
+    const head=document.createElement("div");
+    head.className="audit-item-head";
+    const title=document.createElement("strong");
+    title.textContent=String(event.action||"event");
+    const time=document.createElement("span");
+    time.textContent=event.occurred_at?new Date(event.occurred_at).toLocaleString():"";
+    head.append(title,time);
+    const meta=document.createElement("div");
+    meta.className="audit-item-meta";
+    const detail=event.detail&&typeof event.detail==="object"?event.detail:{};
+    meta.textContent=[
+      "结果: "+(event.outcome||"-")+" · AAL: "+(event.aal||"-"),
+      "目标: "+(event.target||"-"),
+      "详情: "+JSON.stringify(detail)
+    ].join("\n");
+    item.append(head,meta);
+    root.appendChild(item);
+  }
+}
+
+async function loadAudit(){
+  try{
+    const value=await api("audit");
+    renderAudit(value.events||[]);
+  }catch(error){
+    $("auditLog").textContent=error.code==="ACCESS_DENIED"
+      ?"当前项目角色没有审计查看权限。"
+      :"审计记录暂不可用："+error.message;
+  }
+}
+
+async function bootstrapAuthenticatedSession(){
+  const status=await api("auth_status");
+  applyOpsStatus(status);
+  if(status.aal!=="aal2"){
+    await prepareMfa();
+    return;
+  }
+  await loadConfig();
 }
 
 async function signIn(){
@@ -460,50 +678,58 @@ async function signIn(){
     alert("请输入账号和密码");
     return;
   }
-  const response=await fetch(BASE+"/auth/v1/token?grant_type=password",{
-    method:"POST",
-    headers:{apikey:PUB,"Content-Type":"application/json"},
-    body:JSON.stringify({email,password})
-  });
-  const value=await response.json();
-  $("password").value="";
-  if(!response.ok||!value.access_token){
-    alert("身份验证失败");
-    return;
+  const button=$("loginBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="验证账号中…";
+  try{
+    const response=await fetch(BASE+"/auth/v1/token?grant_type=password",{
+      method:"POST",
+      headers:{apikey:PUB,"Content-Type":"application/json"},
+      body:JSON.stringify({email,password})
+    });
+    const value=await response.json();
+    $("password").value="";
+    if(!response.ok||!value.access_token)throw new Error("账号或密码验证失败");
+    token=value.access_token;
+    sessionStorage.setItem("mz_ai_admin_token",token);
+    await bootstrapAuthenticatedSession();
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
   }
-  token=value.access_token;
-  sessionStorage.setItem("mz_ai_admin_token",token);
-  await loadConfig();
 }
 
 async function loadConfig(){
   const value=await api("config");
-  const c=value.config;
-  keyStates=c.api_key_states||{};
-  setAuthenticated(true);
+  const cfg=value.config;
+  keyStates=cfg.api_key_states||{};
+  setAuthStage("console");
+  if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
 
-  $("provider").value=PROVIDERS[c.provider]?c.provider:"openai_compatible";
-  $("api_style").value=c.api_style;
+  $("provider").value=PROVIDERS[cfg.provider]?cfg.provider:"openai_compatible";
+  $("api_style").value=cfg.api_style;
   syncApiStyleAvailability();
-  if(c.api_style&&Array.from($("api_style").options).some(o=>o.value===c.api_style&&!o.disabled)){
-    $("api_style").value=c.api_style;
+  if(cfg.api_style&&Array.from($("api_style").options).some(o=>o.value===cfg.api_style&&!o.disabled)){
+    $("api_style").value=cfg.api_style;
   }
-  $("base_url").value=c.base_url||"";
+  $("base_url").value=cfg.base_url||"";
   syncBaseUrl({force:false});
-  $("base_url").value=c.base_url||$("base_url").value;
-  populateModelOptions(c.model||"");
-  syncThinkingControl(c.thinking_mode||providerConfig().default_thinking);
-  $("timeout_ms").value=c.timeout_ms;
-  $("repairs").value=c.max_repair_attempts;
-  $("enabled").value=String(c.enabled);
+  $("base_url").value=cfg.base_url||$("base_url").value;
+  populateModelOptions(cfg.model||"");
+  syncThinkingControl(cfg.thinking_mode||providerConfig().default_thinking);
+  $("timeout_ms").value=cfg.timeout_ms;
+  $("repairs").value=cfg.max_repair_attempts;
+  $("enabled").value=String(cfg.enabled);
   $("api_key").value="";
-  $("activeBadge").textContent=(c.provider||"-")+" / "+(c.model||"-");
+  $("activeBadge").textContent=(cfg.provider||"-")+" / "+(cfg.model||"-");
   refreshDraft();
-  showHealth(c);
+  showHealth(cfg);
   loadDecisionConfig().catch(error=>{
     $("jevHealth").className="status top-gap bad";
     $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
   });
+  loadAudit();
 }
 
 async function save(){
@@ -536,8 +762,14 @@ async function testProvider(mode){
 function logout(){
   sessionStorage.removeItem("mz_ai_admin_token");
   token="";
+  opsAuthStatus=null;
+  mfaFactorId="";
+  mfaMode="";
   $("api_key").value="";
-  setAuthenticated(false);
+  $("jev_api_key").value="";
+  $("mfaCode").value="";
+  $("mfaSecret").value="";
+  setAuthStage("login");
 }
 
 document.querySelectorAll("[data-preset]").forEach(
@@ -569,6 +801,30 @@ $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.mes
 $("password").addEventListener("keydown",event=>{
   if(event.key==="Enter")signIn().catch(error=>alert(error.message));
 });
+$("mfaVerifyBtn").addEventListener("click",()=>verifyMfa().catch(error=>{
+  $("mfaStatus").className="status top-gap bad";
+  $("mfaStatus").textContent=error.message;
+}));
+$("mfaCode").addEventListener("keydown",event=>{
+  if(event.key==="Enter")verifyMfa().catch(error=>{
+    $("mfaStatus").className="status top-gap bad";
+    $("mfaStatus").textContent=error.message;
+  });
+});
+$("mfaLogoutBtn").addEventListener("click",logout);
+$("mfaCopySecretBtn").addEventListener("click",async()=>{
+  const secret=$("mfaSecret").value;
+  if(!secret)return;
+  try{
+    await navigator.clipboard.writeText(secret);
+    $("mfaStatus").className="status top-gap ok";
+    $("mfaStatus").textContent="手工密钥已复制。";
+  }catch(_e){
+    $("mfaSecret").select();
+    $("mfaStatus").className="status top-gap";
+    $("mfaStatus").textContent="已选中密钥，请手动复制。";
+  }
+});
 $("saveBtn").addEventListener("click",save);
 $("testConnBtn").addEventListener("click",()=>testProvider("connection"));
 $("testRespBtn").addEventListener("click",()=>testProvider("generation"));
@@ -576,8 +832,14 @@ $("reloadBtn").addEventListener("click",()=>loadConfig().catch(error=>alert(erro
 $("jevSaveBtn").addEventListener("click",saveDecision);
 $("jevTestBtn").addEventListener("click",testDecision);
 $("jevReloadBtn").addEventListener("click",()=>loadDecisionConfig().catch(error=>alert(error.message)));
+$("auditReloadBtn").addEventListener("click",loadAudit);
 $("logoutBtn").addEventListener("click",logout);
 
 if(token){
-  loadConfig().catch(()=>logout());
+  bootstrapAuthenticatedSession().catch(error=>{
+    alert(error.message);
+    logout();
+  });
+}else{
+  setAuthStage("login");
 }
