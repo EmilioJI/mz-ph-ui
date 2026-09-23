@@ -39,14 +39,76 @@
     </div>
   </section>
 
+  <section id="mfa" class="card auth-card hidden">
+    <div class="section-title">
+      <div>
+        <div class="eyebrow">Security</div>
+        <h2>二次验证</h2>
+        <p id="mfaInstruction" class="muted">正在检查多因素认证状态…</p>
+      </div>
+      <span id="mfaBadge" class="badge">MFA</span>
+    </div>
+
+    <div id="mfaEnroll" class="hidden">
+      <div class="mfa-enroll-grid">
+        <div class="qr-shell">
+          <img id="mfaQr" alt="TOTP 二维码">
+        </div>
+        <div>
+          <h3>绑定验证器</h3>
+          <p class="muted">使用 Microsoft Authenticator、Google Authenticator、1Password 等扫描二维码。无法扫码时，可手工输入下面的密钥。</p>
+          <label for="mfaSecret">手工密钥</label>
+          <div class="secret-row">
+            <input id="mfaSecret" readonly autocomplete="off">
+            <button class="secondary" id="mfaCopySecretBtn" type="button">复制</button>
+          </div>
+          <p class="field-note">Supabase 不提供传统 recovery codes。完成绑定后，建议后续再添加一个备用 TOTP 因子并保存在不同设备。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-gap">
+      <label for="mfaCode">6 位动态验证码</label>
+      <input id="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000">
+    </div>
+
+    <div class="row top-gap">
+      <button id="mfaVerifyBtn" type="button">验证并进入</button>
+      <button class="ghost" id="mfaLogoutBtn" type="button">退出登录</button>
+    </div>
+    <div id="mfaStatus" class="status top-gap">等待验证</div>
+  </section>
+
   <main id="console" class="hidden">
     <section class="console-heading">
       <div>
-        <div class="eyebrow">蒙正规划</div>
-        <h1>AI Provider Hub</h1>
-        <p>模型、Provider 与 API Key 统一在云端管理。已保存的 Key 只存在于服务端 Vault，不在网页或 Android 中回显。</p>
+        <div class="eyebrow">蒙正 · 运维控制面</div>
+        <h1>Operations Hub</h1>
+        <p>统一管理项目运维、模型 Provider 与敏感配置。访问受 MFA、项目级 RBAC 和操作审计保护；已保存的 Key 只存在于服务端 Vault。</p>
       </div>
-      <div class="hero-badge">Server-side control plane</div>
+      <div class="hero-badge">MFA · RBAC · Audit</div>
+    </section>
+
+    <section class="card ops-context">
+      <div class="section-title">
+        <div>
+          <h2>当前项目</h2>
+          <p class="muted">首个接入项目；后续项目复用同一认证、权限和审计体系。</p>
+        </div>
+        <span id="roleBadge" class="badge">加载中</span>
+      </div>
+      <div class="grid">
+        <div>
+          <label for="projectSelect">项目</label>
+          <select id="projectSelect" disabled>
+            <option value="mengzheng">蒙正规划</option>
+          </select>
+        </div>
+        <div>
+          <label for="mfaSessionState">当前安全会话</label>
+          <input id="mfaSessionState" value="等待验证" disabled>
+        </div>
+      </div>
     </section>
 
     <section class="card">
@@ -222,6 +284,17 @@
       </div>
 
       <div id="jevHealth" class="status top-gap">尚未测试</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>操作审计</h2>
+          <p class="muted">记录 Provider/Jev 配置修改、测试、权限拒绝等敏感运维事件；不会记录 API Key 明文。</p>
+        </div>
+        <button class="secondary" id="auditReloadBtn" type="button">刷新审计</button>
+      </div>
+      <div id="auditLog" class="audit-list">尚未加载</div>
     </section>
 
   </main>
