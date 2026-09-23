@@ -47,6 +47,14 @@ jobs:
           ):
               if marker not in workspace:
                   raise SystemExit("multi-project Operations Hub surface missing: " + marker)
+          for marker in (
+              'id="projectRuntimeConfig"',
+              'id="runtimeConfigFields"',
+              'id="runtimeSaveBtn"',
+              'id="runtimeAdapterBadge"',
+          ):
+              if marker not in workspace:
+                  raise SystemExit("project runtime staging surface missing: " + marker)
           if 'id="projectSelect" disabled' in workspace:
               raise SystemExit("project selector must be driven by authorized memberships")
           for marker in (
@@ -92,6 +100,19 @@ jobs:
           ):
               if marker not in app:
                   raise SystemExit("multi-project isolation contract missing: " + marker)
+          for marker in (
+              'loadProjectRuntimeConfig',
+              'saveProjectRuntimeConfig',
+              'xiaoshutongRuntimeSpecs',
+              'jevRuntimeSpecs',
+              'data-secret-slot',
+              '已保存到独立 Vault（留空保持）',
+              '不接管运行时',
+          ):
+              if marker not in app:
+                  raise SystemExit("staged project runtime contract missing: " + marker)
+          if 'value=secretStates' in app or 'input.value=secretStates' in app:
+              raise SystemExit("saved project secrets must never be prefilled into browser inputs")
           if 'sessionStorage.setItem("backupTotp' in app:
               raise SystemExit("backup TOTP secret must never persist in storage")
           if workspace.index('id="health"') > workspace.index('Jev Decision Provider'):
