@@ -33,6 +33,22 @@ jobs:
                   raise SystemExit("provider model control missing: " + marker)
           if 'id="health"' not in workspace or 'Jev Decision Provider' not in workspace:
               raise SystemExit("provider test or Jev section missing")
+          for marker in ('id="mfa"', 'id="mfaCode"', 'id="mfaQr"', 'id="auditLog"', 'Operations Hub'):
+              if marker not in workspace:
+                  raise SystemExit("Operations Hub security surface missing: " + marker)
+          for marker in (
+              '/auth/v1/factors',
+              '/challenge',
+              '/verify',
+              'bootstrapAuthenticatedSession',
+              'status.aal!=="aal2"',
+              'loadAudit',
+              'sessionStorage.setItem("mz_ai_admin_token",token)',
+          ):
+              if marker not in app:
+                  raise SystemExit("MFA/RBAC frontend contract missing: " + marker)
+          if 'sessionStorage.setItem("mfa' in app or 'localStorage' in app:
+              raise SystemExit("MFA secret/session persistence boundary violated")
           if workspace.index('id="health"') > workspace.index('Jev Decision Provider'):
               raise SystemExit("primary provider test result must stay before Jev section")
           for marker in ('setProviderTestBusy', 'showProviderTestResult', '测试响应中…'):
