@@ -4,149 +4,57 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://ibshmenzooxndneqwqht.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
-<title>蒙正规划 · AI Provider Hub</title>
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<title>蒙正 · 项目页</title>
 <link rel="stylesheet" href="./style.css">
 </head>
-<body>
-<div class="wrap">
-  <header class="hero">
-    <div>
-      <div class="eyebrow">蒙正规划</div>
-      <h1>AI Provider Hub</h1>
-      <p>模型、Provider 与 API Key 统一在云端管理。已保存的 Key 只存在于服务端 Vault，不在网页或 Android 中回显。</p>
+<body class="public-body">
+<div class="wrap public-wrap">
+  <header class="public-hero">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">蒙</div>
+      <div>
+        <div class="eyebrow">MENGZHENG</div>
+        <h1>蒙正</h1>
+      </div>
     </div>
-    <div class="hero-badge">Server-side control plane</div>
+    <div class="hero-badge">Project page</div>
   </header>
 
-  <section id="login" class="card">
-    <h2>管理员登录</h2>
-    <p class="muted">仅已授权的 Provider Admin 可以读取或修改配置。</p>
-    <div class="grid">
-      <div>
-        <label for="email">邮箱</label>
-        <input id="email" type="email" autocomplete="username">
-      </div>
-      <div>
-        <label for="password">密码</label>
-        <input id="password" type="password" autocomplete="current-password">
-      </div>
-    </div>
-    <div class="row top-gap">
-      <button id="loginBtn">登录</button>
-    </div>
-  </section>
-
-  <main id="console" class="hidden">
-    <section class="card">
-      <div class="section-title">
-        <div>
-          <h2>模型预设</h2>
-          <p class="muted">先测试草稿配置，通过后再保存启用。</p>
-        </div>
-      </div>
-      <div class="preset-grid">
-        <button class="preset" data-preset="glm47">
-          <strong>GLM-4.7</strong><span>非思考 · 当前保底</span>
-        </button>
-        <button class="preset" data-preset="glm53flash">
-          <strong>GLM-5.3-Flash</strong><span>强制 Thinking</span>
-        </button>
-        <button class="preset" data-preset="deepseek">
-          <strong>DeepSeek Flash</strong><span>非思考 · 推荐 A/B</span>
-        </button>
-        <button class="preset" data-preset="custom">
-          <strong>Custom</strong><span>OpenAI-compatible</span>
-        </button>
-      </div>
-      <div id="policy_note" class="policy-note"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-title">
-        <div>
-          <h2>当前 / 草稿配置</h2>
-          <p class="muted">草稿测试不会自动切换线上模型。</p>
-        </div>
-        <span id="activeBadge" class="badge">未加载</span>
+  <main>
+    <section class="card public-card">
+      <div class="public-copy">
+        <h2>项目资料与版本页</h2>
+        <p>此页面用于展示蒙正规划相关的基础说明与版本标识，不提供公开交互功能。</p>
       </div>
 
-      <div class="grid">
-        <div>
-          <label for="provider">Provider</label>
-          <select id="provider">
-            <option value="zhipuai">ZhipuAI</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="openai">OpenAI</option>
-            <option value="openai_compatible">OpenAI-compatible</option>
-          </select>
-        </div>
-        <div>
-          <label for="api_style">API 协议</label>
-          <select id="api_style">
-            <option value="chat_completions">Chat Completions</option>
-            <option value="responses">Responses</option>
-          </select>
-        </div>
-
-        <div class="full">
-          <label for="base_url">Base URL</label>
-          <input id="base_url" spellcheck="false">
-        </div>
-
-        <div>
-          <label for="model">模型</label>
-          <input id="model" spellcheck="false">
-        </div>
-        <div>
-          <label for="api_key">当前 Provider API Key</label>
-          <input id="api_key" type="password" autocomplete="new-password" placeholder="留空 = 保持该 Provider 已保存的 Key">
-        </div>
-
-        <div>
-          <label for="timeout_ms">Provider Timeout (ms)</label>
-          <input id="timeout_ms" type="number" min="5000" max="60000">
-        </div>
-        <div>
-          <label for="repairs">格式修复重试次数</label>
-          <input id="repairs" type="number" min="0" max="2">
-        </div>
-
-        <div>
-          <label for="thinking_mode">Thinking</label>
-          <input id="thinking_mode" readonly>
-        </div>
-        <div>
-          <label for="key_state">Key 状态</label>
-          <input id="key_state" disabled>
-        </div>
-
-        <div>
-          <label for="enabled">启用</label>
-          <select id="enabled">
-            <option value="true">启用</option>
-            <option value="false">停用</option>
-          </select>
-        </div>
+      <div class="public-grid">
+        <article class="public-item">
+          <span class="public-index">01</span>
+          <strong>移动端应用</strong>
+          <p>主要功能入口位于已安装客户端。</p>
+        </article>
+        <article class="public-item">
+          <span class="public-index">02</span>
+          <strong>数据说明</strong>
+          <p>业务数据由受控服务处理，不在此页面展示。</p>
+        </article>
+        <article class="public-item">
+          <span class="public-index">03</span>
+          <strong>版本标识</strong>
+          <p>页面仅保留必要的版本与项目识别信息。</p>
+        </article>
       </div>
 
-      <div class="row top-gap">
-        <button id="saveBtn">保存并启用此配置</button>
-        <button class="secondary" id="testConnBtn">测试连接</button>
-        <button class="secondary" id="testRespBtn">测试响应</button>
-        <button class="secondary" id="reloadBtn">恢复线上配置</button>
-        <button class="ghost" id="logoutBtn">退出登录</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>健康状态</h2>
-      <div id="health" class="status">尚未加载</div>
+      <div class="public-note">如需使用产品功能，请从蒙正规划应用内进入。</div>
     </section>
   </main>
 
-  <footer>mz-ph-ui · operational frontend only</footer>
+  <footer class="public-footer">
+    <span>© 2026 MZ</span>
+    <span>2026.09</span>
+  </footer>
 </div>
-<script src="./app.js" defer></script>
 </body>
 </html>
