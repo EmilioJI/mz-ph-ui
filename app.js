@@ -17,6 +17,7 @@ let mfaMode="";
 let backupTotpFactorId="";
 let opsMemberships=[];
 let selectedProjectKey=sessionStorage.getItem("mz_ops_project")||"mengzheng";
+let projectRuntimeSnapshot=null;
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -511,6 +512,266 @@ function projectIntegrationMessage(project){
   return "项目已注册到统一认证、RBAC 与审计体系；项目专属运维适配待接入。";
 }
 
+function runtimeField(spec,value,secretStates){
+  const wrap=document.createElement("div");
+  if(spec.full)wrap.classList.add("full");
+
+  const label=document.createElement("label");
+  const id="runtime_"+spec.key;
+  label.htmlFor=id;
+  label.textContent=spec.label;
+  wrap.appendChild(label);
+
+  let input;
+  if(Array.isArray(spec.options)){
+    input=document.createElement("select");
+    for(const optionSpec of spec.options){
+      const option=document.createElement("option");
+      const tuple=Array.isArray(optionSpec)?optionSpec:[optionSpec,optionSpec];
+      option.value=String(tuple[0]);
+      option.textContent=String(tuple[1]);
+      input.appendChild(option);
+    }
+  }else{
+    input=document.createElement("input");
+    input.type=spec.secret?"password":(spec.type||"text");
+    if(spec.secret)input.autocomplete="new-password";
+    if(spec.type==="number"){
+      if(spec.min!==undefined)input.min=String(spec.min);
+      if(spec.max!==undefined)input.max=String(spec.max);
+      if(spec.step!==undefined)input.step=String(spec.step);
+    }
+  }
+  input.id=id;
+
+  if(spec.secret){
+    input.dataset.secretSlot=spec.key;
+    const configured=secretStates?.[spec.key]===true;
+    input.placeholder=configured
+      ?"已保存到独立 Vault（留空保持）"
+      :"尚未保存 Key";
+  }else{
+    input.dataset.runtimeKey=spec.key;
+    input.dataset.valueType=spec.valueType||"string";
+    const raw=value?.[spec.key];
+    if(spec.valueType==="nullable_bool"){
+      input.value=raw===true?"true":raw===false?"false":"";
+    }else if(raw!==undefined&&raw!==null){
+      input.value=String(raw);
+    }else if(spec.defaultValue!==undefined){
+      input.value=String(spec.defaultValue);
+    }
+  }
+  wrap.appendChild(input);
+
+  if(spec.note){
+    const note=document.createElement("p");
+    note.className="field-note";
+    note.textContent=spec.note;
+    wrap.appendChild(note);
+  }
+  return wrap;
+}
+
+function xiaoshutongRuntimeSpecs(){
+  return [
+    {key:"model_provider",label:"文本模型 Provider",options:[
+      ["FAKE","FAKE · 不调用真实模型"],
+      ["OPENAI_COMPATIBLE","OpenAI-compatible"],
+      ["ZHIPU_GLM52_TEXT_ONLY","Zhipu GLM-5.2 text-only"]
+    ]},
+    {key:"model_runtime_profile",label:"模型运行档",options:[
+      ["ZHIPU_GLM47","ZHIPU_GLM47"],
+      ["DEEPSEEK_FLASH","DEEPSEEK_FLASH"]
+    ]},
+    {key:"model_base_url",label:"模型 Base URL",full:true,note:"保持与小书童 core-api 当前 XST_MODEL_BASE_URL 合同一致。"},
+    {key:"model_name",label:"模型 ID"},
+    {key:"model_api_key",label:"模型 API Key",secret:true},
+    {key:"model_timeout_seconds",label:"模型超时（秒）",type:"number",min:1,max:120,step:1,valueType:"number"},
+    {key:"model_max_tokens",label:"Max Tokens",type:"number",min:1,max:8192,step:1,valueType:"integer"},
+    {key:"model_thinking_enabled",label:"Thinking",options:[
+      ["","未指定 · 交由当前运行档"],
+      ["false","关闭"],
+      ["true","开启"]
+    ],valueType:"nullable_bool"},
+
+    {key:"homework_ocr_provider",label:"作业 OCR",options:[
+      ["FAKE","FAKE"],
+      ["HTTP_JSON","HTTP_JSON"]
+    ]},
+    {key:"homework_ocr_base_url",label:"OCR Base URL"},
+    {key:"homework_ocr_api_key",label:"OCR API Key",secret:true},
+
+    {key:"homework_multimodal_provider",label:"作业多模态",options:[
+      ["DISABLED","DISABLED"],
+      ["OPENAI_COMPATIBLE","OPENAI_COMPATIBLE"]
+    ]},
+    {key:"homework_multimodal_endpoint",label:"多模态 Endpoint"},
+    {key:"homework_multimodal_model",label:"多模态模型"},
+    {key:"homework_multimodal_api_key",label:"多模态 API Key",secret:true},
+
+    {key:"asr_provider",label:"ASR Provider",options:[
+      ["FAKE","FAKE"],
+      ["HTTP","HTTP"],
+      ["LOCAL_FUNASR","LOCAL_FUNASR"]
+    ]},
+    {key:"asr_base_url",label:"ASR Base URL"},
+    {key:"asr_model",label:"ASR 模型"},
+    {key:"asr_api_key",label:"ASR API Key",secret:true},
+
+    {key:"tts_provider",label:"TTS Provider",options:[
+      ["FAKE","FAKE"],
+      ["HTTP","HTTP"],
+      ["LOCAL_HTTP","LOCAL_HTTP"],
+      ["LOCAL_QWEN3_TTS","LOCAL_QWEN3_TTS"]
+    ]},
+    {key:"tts_base_url",label:"TTS Base URL"},
+    {key:"tts_model",label:"TTS 模型"},
+    {key:"tts_voice",label:"TTS Voice"},
+    {key:"tts_api_key",label:"TTS API Key",secret:true}
+  ];
+}
+
+function jevRuntimeSpecs(){
+  return [
+    {key:"judge_provider",label:"Judge Provider",options:[
+      ["openrouter","OpenRouter"],
+      ["typesafe","TypeSafe / Jev"],
+      ["custom","Custom"]
+    ]},
+    {key:"judge_base_url",label:"Judge Base URL"},
+    {key:"judge_model",label:"Judge 模型"},
+    {key:"judge_api_key",label:"Judge API Key",secret:true},
+
+    {key:"reply_base_url",label:"Reply Base URL"},
+    {key:"reply_model",label:"Reply 模型"},
+    {key:"reply_api_key",label:"Reply API Key",secret:true,note:"留空保持独立 Vault 中已保存的 Reply Key。"},
+
+    {key:"vision_base_url",label:"Vision Base URL"},
+    {key:"vision_model",label:"Vision 模型"},
+    {key:"vision_api_key",label:"Vision API Key",secret:true,note:"DeepSeek 官方当前不提供 JEV 这里所需的视觉路由。"}
+  ];
+}
+
+function runtimeSpecsFor(projectKey){
+  if(projectKey==="xiaoshutong")return xiaoshutongRuntimeSpecs();
+  if(projectKey==="jev-chat-jarvis")return jevRuntimeSpecs();
+  return [];
+}
+
+function runtimeDescription(projectKey){
+  if(projectKey==="xiaoshutong"){
+    return "小书童独立运行时草稿。字段映射现有 core-api 的 XST_* Provider / OCR / ASR / TTS 合同。";
+  }
+  if(projectKey==="jev-chat-jarvis"){
+    return "JEV 独立运行时草稿。字段映射当前 Android Judge / Reply / Vision 三路配置。";
+  }
+  return "项目专属配置。";
+}
+
+function renderRuntimeConfig(value){
+  projectRuntimeSnapshot=value||{};
+  const card=$("projectRuntimeConfig");
+  const specs=runtimeSpecsFor(selectedProjectKey);
+  if(!specs.length){
+    card.classList.add("hidden");
+    $("runtimeConfigFields").replaceChildren();
+    projectRuntimeSnapshot=null;
+    return;
+  }
+
+  card.classList.remove("hidden");
+  $("runtimeConfigDescription").textContent=runtimeDescription(selectedProjectKey);
+  const status=String(value?.runtime_adapter_status||"not_connected");
+  $("runtimeAdapterBadge").textContent="Adapter · "+status;
+  $("runtimeConfigBoundary").textContent=value?.enabled===true
+    ?"运行时接管已启用。"
+    :"当前仅保存 staged 配置，不接管运行时；项目仍使用自身现有配置来源。";
+
+  const root=$("runtimeConfigFields");
+  root.replaceChildren();
+  const config=value?.config&&typeof value.config==="object"?value.config:{};
+  const secretStates=value?.secret_states&&typeof value.secret_states==="object"
+    ?value.secret_states:{};
+  for(const spec of specs){
+    root.appendChild(runtimeField(spec,config,secretStates));
+  }
+
+  const configuredSecrets=Object.values(secretStates).filter(Boolean).length;
+  $("runtimeConfigStatus").className="status top-gap";
+  $("runtimeConfigStatus").textContent=[
+    "项目: "+selectedProjectKey,
+    "Adapter: "+status,
+    "接管运行时: "+(value?.enabled===true?"YES":"NO"),
+    "配置修订: "+(value?.revision??"-"),
+    "已保存独立密钥: "+configuredSecrets
+  ].join("\n");
+  $("runtimeSaveBtn").textContent=value?.enabled===true
+    ?"保存运行时配置"
+    :"保存草稿配置（不接管运行时）";
+}
+
+function collectRuntimeConfig(){
+  const config={};
+  document.querySelectorAll("#runtimeConfigFields [data-runtime-key]").forEach(input=>{
+    const key=input.dataset.runtimeKey;
+    const type=input.dataset.valueType||"string";
+    if(type==="integer")config[key]=Number.parseInt(input.value,10);
+    else if(type==="number")config[key]=Number(input.value);
+    else if(type==="nullable_bool")config[key]=input.value===""?null:input.value==="true";
+    else config[key]=input.value.trim();
+  });
+  const secrets={};
+  document.querySelectorAll("#runtimeConfigFields [data-secret-slot]").forEach(input=>{
+    const value=input.value.trim();
+    if(value)secrets[input.dataset.secretSlot]=value;
+  });
+  return {config,secrets};
+}
+
+async function loadProjectRuntimeConfig(){
+  const specs=runtimeSpecsFor(selectedProjectKey);
+  if(!specs.length){
+    renderRuntimeConfig(null);
+    return;
+  }
+  $("runtimeConfigStatus").className="status top-gap";
+  $("runtimeConfigStatus").textContent="正在加载项目独立配置…";
+  const value=await api("runtime_config","GET",null,{project:selectedProjectKey});
+  renderRuntimeConfig(value.config||{});
+}
+
+async function saveProjectRuntimeConfig(){
+  if(!runtimeSpecsFor(selectedProjectKey).length)return;
+  const button=$("runtimeSaveBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="保存中…";
+  try{
+    const draft=collectRuntimeConfig();
+    const response=await api("runtime_save","POST",{
+      config:draft.config,
+      secrets:draft.secrets,
+      enabled:projectRuntimeSnapshot?.enabled===true
+    },{project:selectedProjectKey});
+    renderRuntimeConfig(response.config||{});
+    $("runtimeConfigStatus").className="status top-gap ok";
+    $("runtimeConfigStatus").textContent=[
+      "草稿保存成功",
+      "Adapter: "+String(response.config?.runtime_adapter_status||"-"),
+      "接管运行时: "+(response.config?.enabled===true?"YES":"NO"),
+      "配置修订: "+String(response.config?.revision??"-"),
+      "新输入 Key 已清空；已保存 Key 不回显"
+    ].join("\n");
+  }catch(error){
+    $("runtimeConfigStatus").className="status top-gap bad";
+    $("runtimeConfigStatus").textContent="保存失败："+error.message;
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
 function renderProjectSelection(){
   const project=membershipFor();
   if(!project)return;
@@ -918,7 +1179,10 @@ async function applyProjectSelection(){
   $("auditLog").textContent="正在加载 "+String(project.display_name||selectedProjectKey)+" 审计…";
   await loadAudit();
   if(selectedProjectKey==="mengzheng"){
+    renderRuntimeConfig(null);
     await loadMengzhengConfig();
+  }else{
+    await loadProjectRuntimeConfig();
   }
 }
 
@@ -1086,6 +1350,11 @@ $("projectSelect").addEventListener("change",()=>{
     $("projectIntegrationNote").textContent="项目切换失败："+error.message;
   });
 });
+$("runtimeSaveBtn").addEventListener("click",saveProjectRuntimeConfig);
+$("runtimeReloadBtn").addEventListener("click",()=>loadProjectRuntimeConfig().catch(error=>{
+  $("runtimeConfigStatus").className="status top-gap bad";
+  $("runtimeConfigStatus").textContent="恢复草稿失败："+error.message;
+}));
 $("auditReloadBtn").addEventListener("click",loadAudit);
 $("securityReloadBtn").addEventListener("click",()=>loadSecuritySettings().catch(error=>{
   $("securityStatus").className="status top-gap bad";
