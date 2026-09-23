@@ -190,6 +190,28 @@
       <div id="securityStatus" class="status top-gap">尚未加载</div>
     </section>
 
+    <section id="projectRuntimeConfig" class="card hidden">
+      <div class="section-title">
+        <div>
+          <h2>项目运行时配置</h2>
+          <p id="runtimeConfigDescription" class="muted">项目专属配置。</p>
+        </div>
+        <span id="runtimeAdapterBadge" class="badge">未连接</span>
+      </div>
+
+      <div id="runtimeConfigBoundary" class="policy-note">
+        当前配置仅保存到 Operations Hub，不会自动改变项目运行时。
+      </div>
+
+      <div id="runtimeConfigFields" class="grid top-gap"></div>
+
+      <div class="row top-gap">
+        <button id="runtimeSaveBtn" type="button">保存草稿配置</button>
+        <button id="runtimeReloadBtn" class="secondary" type="button">恢复已保存草稿</button>
+      </div>
+      <div id="runtimeConfigStatus" class="status top-gap">尚未加载</div>
+    </section>
+
     <section id="mengzhengModelPresets" class="card project-module">
       <div class="section-title">
         <div>
