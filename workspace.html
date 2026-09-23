@@ -163,13 +163,13 @@
       <div class="section-title">
         <div>
           <h2>Jev Decision Provider</h2>
-          <p class="muted">独立的结构化决策增强，不替代 DeepSeek / GLM 主规划模型。</p>
+          <p class="muted">独立的结构化决策增强，不替代 DeepSeek / GLM 主规划模型。当前控制面与测试已接通；正式规划调用将在 candidate_slots 合同完成后启用。</p>
         </div>
         <span id="jevBadge" class="badge">未加载</span>
       </div>
 
       <div class="policy-note">
-        Jev 是可选增强层。关闭时不会产生任何 Jev 调用；开启后若 Jev 超时、限流、密钥失效或服务不可用，主规划链路继续运行，不因 Jev 失败而阻塞。
+        Jev 是可选增强层。当前版本只有“测试 Jev 决策接口”会实际调用 Jev；正式规划链路尚未依赖 Jev。未来接入后，关闭时零调用；开启但 Jev 超时、限流、密钥失效或服务不可用时，主规划仍继续运行。
       </div>
 
       <div class="grid top-gap">
@@ -177,7 +177,7 @@
           <label for="jev_enabled">Jev 决策增强</label>
           <select id="jev_enabled">
             <option value="false">关闭 · 不调用 Jev</option>
-            <option value="true">开启 · 允许决策增强</option>
+            <option value="true">开启许可 · 正式增强待 candidate_slots 接入</option>
           </select>
         </div>
         <div>
