@@ -290,6 +290,42 @@ function showHealth(x){
   ].join("\n");
 }
 
+function setProviderTestBusy(busy,label=""){
+  const conn=$("testConnBtn");
+  const resp=$("testRespBtn");
+  conn.disabled=busy;
+  resp.disabled=busy;
+  conn.textContent=busy&&label==="connection"?"测试连接中…":"测试连接";
+  resp.textContent=busy&&label==="generation"?"测试响应中…":"测试响应";
+  if(busy){
+    const node=$("health");
+    node.className="status";
+    node.textContent=label==="generation"
+      ?"正在调用当前模型并验证响应…"
+      :"正在连接当前 Provider…";
+    node.setAttribute("aria-busy","true");
+  }else{
+    $("health").removeAttribute("aria-busy");
+  }
+}
+
+function showProviderTestResult(result){
+  const node=$("health");
+  const ok=result?.ok===true;
+  node.className="status "+(ok?"ok":"bad");
+  node.textContent=[
+    "结果: "+(ok?"PASS":"FAIL"),
+    "Provider: "+($("provider").value||"-"),
+    "模型: "+(selectedModel()||"-"),
+    "Thinking: "+(result?.thinking_mode||$("thinking_mode").value||"-"),
+    "延迟: "+(result?.latency_ms??"-")+" ms",
+    "HTTP: "+(result?.http_status??"-"),
+    "返回: "+(result?.preview||"-"),
+    "错误: "+(result?.error_code||"-"),
+    "信息: "+(result?.message||"-")
+  ].join("\n");
+}
+
 function decisionPayload(){
   return{
     base_url:$("jev_base_url").value.trim(),
@@ -483,14 +519,17 @@ async function save(){
 }
 
 async function testProvider(mode){
+  setProviderTestBusy(true,mode);
   try{
     const value=validatePayload(payload());
-    const result=await api("test","POST",{...value,mode});
-    const node=$("health");
-    node.className="status "+(result.result.ok?"ok":"bad");
-    node.textContent=JSON.stringify(result.result,null,2);
+    const response=await api("test","POST",{...value,mode});
+    showProviderTestResult(response.result||{});
   }catch(error){
-    alert(error.message);
+    const node=$("health");
+    node.className="status bad";
+    node.textContent="测试失败："+error.message;
+  }finally{
+    setProviderTestBusy(false,mode);
   }
 }
 
