@@ -205,7 +205,13 @@
         当前配置仅保存到 Operations Hub，不会自动改变项目运行时。
       </div>
 
-      <div id="runtimeConfigFields" class="grid top-gap"></div>
+      <div id="runtimePresetPanel" class="hidden top-gap">
+        <div class="result-title">小书童文本模型预设</div>
+        <div id="runtimePresetBar" class="preset-grid runtime-presets"></div>
+        <p class="field-note">预设只修改当前浏览器中的草稿字段，不修改、覆盖或读取任何已保存 API Key。</p>
+      </div>
+
+      <div id="runtimeConfigFields" class="runtime-config-groups top-gap"></div>
 
       <div class="row top-gap">
         <button id="runtimeSaveBtn" type="button">保存草稿配置</button>

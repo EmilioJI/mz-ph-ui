@@ -91,3 +91,15 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
   .mfa-enroll-grid{grid-template-columns:1fr}
   .secret-row{grid-template-columns:1fr}
 }
+
+
+.runtime-config-groups{display:grid;gap:16px}
+.runtime-config-group{padding:18px;border:1px solid #e2d5c6;border-radius:16px;background:#fbf8f4}
+.runtime-group-heading{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eadfd2}
+.runtime-group-heading h3{margin:0 0 5px;font-family:"Noto Serif SC","Songti SC",serif;font-size:16px}
+.runtime-presets{grid-template-columns:repeat(2,minmax(0,1fr));max-width:620px}
+.runtime-presets .preset{min-height:68px}
+.runtime-config-group [data-secret-slot]{border-style:dashed;background:#fffdf9}
+@media(max-width:780px){
+  .runtime-presets{grid-template-columns:1fr}
+}

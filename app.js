@@ -669,6 +669,98 @@ function runtimeDescription(projectKey){
   return "项目专属配置。";
 }
 
+function runtimeGroupKey(projectKey,spec){
+  if(projectKey==="xiaoshutong"){
+    if(spec.key.startsWith("model_"))return "model";
+    if(spec.key.startsWith("homework_"))return "homework";
+    if(spec.key.startsWith("asr_")||spec.key.startsWith("tts_"))return "speech";
+  }
+  if(projectKey==="jev-chat-jarvis"){
+    if(spec.key.startsWith("judge_"))return "judge";
+    if(spec.key.startsWith("reply_"))return "reply";
+    if(spec.key.startsWith("vision_"))return "vision";
+  }
+  return "general";
+}
+
+function runtimeGroupMeta(projectKey,groupKey){
+  const groups={
+    xiaoshutong:{
+      model:["文本模型","决定小书童普通对话与结构化理解所使用的受控模型档案。"],
+      homework:["作业理解","OCR 与多模态作业理解独立配置，不与普通对话模型密钥混用。"],
+      speech:["语音","ASR / TTS 可以保持本地低时延，也可以在未来切换到受控云 Provider。"]
+    },
+    "jev-chat-jarvis":{
+      judge:["Judge","结构化判断模型。"],
+      reply:["Reply","自然语言回答模型。"],
+      vision:["Vision","视觉理解模型。"]
+    }
+  };
+  const value=groups[projectKey]?.[groupKey]||["项目配置","项目专属运行时字段。"];
+  return {title:value[0],description:value[1]};
+}
+
+function applyXiaoshutongModelPreset(profileId){
+  const presets={
+    ZHIPU_GLM47:{
+      model_provider:"OPENAI_COMPATIBLE",
+      model_runtime_profile:"ZHIPU_GLM47",
+      model_base_url:"https://open.bigmodel.cn/api/paas/v4",
+      model_name:"glm-4.7",
+      model_thinking_enabled:"false"
+    },
+    DEEPSEEK_FLASH:{
+      model_provider:"OPENAI_COMPATIBLE",
+      model_runtime_profile:"DEEPSEEK_FLASH",
+      model_base_url:"https://api.deepseek.com",
+      model_name:"deepseek-flash",
+      model_thinking_enabled:"false"
+    }
+  };
+  const preset=presets[profileId];
+  if(!preset)return;
+  for(const [key,value] of Object.entries(preset)){
+    const input=document.querySelector(
+      '#runtimeConfigFields [data-runtime-key="'+key+'"]'
+    );
+    if(input)input.value=value;
+  }
+  $("runtimeConfigStatus").className="status top-gap";
+  $("runtimeConfigStatus").textContent=[
+    "已载入小书童受控模型预设："+profileId,
+    "当前只修改浏览器草稿，尚未保存。",
+    "API Key 未读取、未覆盖；留空仍保持 Vault 中已保存的 Key。"
+  ].join("\n");
+}
+
+function renderRuntimePresetPanel(projectKey){
+  const panel=$("runtimePresetPanel");
+  const bar=$("runtimePresetBar");
+  bar.replaceChildren();
+  if(projectKey!=="xiaoshutong"){
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+  const presets=[
+    ["ZHIPU_GLM47","GLM-4.7","现有受控保底"],
+    ["DEEPSEEK_FLASH","DeepSeek Flash","低时延候选"]
+  ];
+  for(const [id,title,summary] of presets){
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="preset";
+    button.dataset.runtimePreset=id;
+    const strong=document.createElement("strong");
+    strong.textContent=title;
+    const span=document.createElement("span");
+    span.textContent=summary;
+    button.append(strong,span);
+    button.addEventListener("click",()=>applyXiaoshutongModelPreset(id));
+    bar.appendChild(button);
+  }
+}
+
 function renderRuntimeConfig(value){
   projectRuntimeSnapshot=value||{};
   const card=$("projectRuntimeConfig");
@@ -676,6 +768,7 @@ function renderRuntimeConfig(value){
   if(!specs.length){
     card.classList.add("hidden");
     $("runtimeConfigFields").replaceChildren();
+    renderRuntimePresetPanel("");
     projectRuntimeSnapshot=null;
     return;
   }
@@ -688,13 +781,40 @@ function renderRuntimeConfig(value){
     ?"运行时接管已启用。"
     :"当前仅保存 staged 配置，不接管运行时；项目仍使用自身现有配置来源。";
 
+  renderRuntimePresetPanel(selectedProjectKey);
   const root=$("runtimeConfigFields");
   root.replaceChildren();
   const config=value?.config&&typeof value.config==="object"?value.config:{};
   const secretStates=value?.secret_states&&typeof value.secret_states==="object"
     ?value.secret_states:{};
+  const grouped=new Map();
   for(const spec of specs){
-    root.appendChild(runtimeField(spec,config,secretStates));
+    const groupKey=runtimeGroupKey(selectedProjectKey,spec);
+    if(!grouped.has(groupKey))grouped.set(groupKey,[]);
+    grouped.get(groupKey).push(spec);
+  }
+  for(const [groupKey,groupSpecs] of grouped.entries()){
+    const group=document.createElement("section");
+    group.className="runtime-config-group";
+    group.dataset.runtimeGroup=groupKey;
+    const meta=runtimeGroupMeta(selectedProjectKey,groupKey);
+
+    const heading=document.createElement("div");
+    heading.className="runtime-group-heading";
+    const title=document.createElement("h3");
+    title.textContent=meta.title;
+    const description=document.createElement("p");
+    description.className="muted";
+    description.textContent=meta.description;
+    heading.append(title,description);
+
+    const fields=document.createElement("div");
+    fields.className="grid";
+    for(const spec of groupSpecs){
+      fields.appendChild(runtimeField(spec,config,secretStates));
+    }
+    group.append(heading,fields);
+    root.appendChild(group);
   }
 
   const configuredSecrets=Object.values(secretStates).filter(Boolean).length;
