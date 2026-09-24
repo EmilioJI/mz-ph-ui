@@ -700,30 +700,70 @@ function runtimeGroupMeta(projectKey,groupKey){
   return {title:value[0],description:value[1]};
 }
 
-function applyXiaoshutongModelPreset(profileId){
-  const presets={
-    ZHIPU_GLM47:{
-      model_provider:"OPENAI_COMPATIBLE",
-      model_runtime_profile:"ZHIPU_GLM47",
-      model_base_url:"https://open.bigmodel.cn/api/paas/v4",
-      model_name:"glm-4.7",
-      model_thinking_enabled:"false"
-    },
-    DEEPSEEK_FLASH:{
-      model_provider:"OPENAI_COMPATIBLE",
-      model_runtime_profile:"DEEPSEEK_FLASH",
-      model_base_url:"https://api.deepseek.com",
-      model_name:"deepseek-flash",
-      model_thinking_enabled:"false"
+const XIAOSHUTONG_MODEL_PROFILES=Object.freeze({
+  ZHIPU_GLM47:Object.freeze({
+    model_provider:"OPENAI_COMPATIBLE",
+    model_runtime_profile:"ZHIPU_GLM47",
+    model_base_url:"https://open.bigmodel.cn/api/paas/v4",
+    model_name:"glm-4.7",
+    model_thinking_enabled:false
+  }),
+  DEEPSEEK_FLASH:Object.freeze({
+    model_provider:"OPENAI_COMPATIBLE",
+    model_runtime_profile:"DEEPSEEK_FLASH",
+    model_base_url:"https://api.deepseek.com",
+    model_name:"deepseek-flash",
+    model_thinking_enabled:false
+  })
+});
+
+function normalizeRuntimeUrl(value){
+  return String(value||"").trim().replace(/\/+$/,"");
+}
+
+function validateXiaoshutongRuntimeDraft(config){
+  const timeout=Number(config.model_timeout_seconds);
+  const maxTokens=Number(config.model_max_tokens);
+  if(!Number.isFinite(timeout)||timeout<1||timeout>120){
+    throw new Error("模型超时必须为 1–120 秒");
+  }
+  if(!Number.isInteger(maxTokens)||maxTokens<1||maxTokens>8192){
+    throw new Error("Max Tokens 必须为 1–8192 的整数");
+  }
+
+  if(config.model_provider==="OPENAI_COMPATIBLE"){
+    const rule=XIAOSHUTONG_MODEL_PROFILES[String(config.model_runtime_profile||"")];
+    if(!rule){
+      throw new Error("OpenAI-compatible 真模型必须选择受控运行档");
     }
-  };
-  const preset=presets[profileId];
+    if(
+      normalizeRuntimeUrl(config.model_base_url)!==normalizeRuntimeUrl(rule.model_base_url)
+      ||String(config.model_name||"").trim()!==rule.model_name
+      ||config.model_thinking_enabled!==rule.model_thinking_enabled
+    ){
+      throw new Error(
+        "模型运行档与 Base URL / Model / Thinking 不一致，请重新选择受控预设"
+      );
+    }
+  }
+  return config;
+}
+
+function validateProjectRuntimeDraft(projectKey,draft){
+  if(projectKey==="xiaoshutong"){
+    validateXiaoshutongRuntimeDraft(draft.config);
+  }
+  return draft;
+}
+
+function applyXiaoshutongModelPreset(profileId){
+  const preset=XIAOSHUTONG_MODEL_PROFILES[profileId];
   if(!preset)return;
   for(const [key,value] of Object.entries(preset)){
     const input=document.querySelector(
       '#runtimeConfigFields [data-runtime-key="'+key+'"]'
     );
-    if(input)input.value=value;
+    if(input)input.value=String(value);
   }
   $("runtimeConfigStatus").className="status top-gap";
   $("runtimeConfigStatus").textContent=[
@@ -818,10 +858,15 @@ function renderRuntimeConfig(value){
   }
 
   const configuredSecrets=Object.values(secretStates).filter(Boolean).length;
+  const project=membershipFor(selectedProjectKey);
+  const providerControl=String(project?.capabilities?.provider_control||"-");
+  const runtimeEvidence=String(project?.status_snapshot?.ops_runtime_adapter||"-");
   $("runtimeConfigStatus").className="status top-gap";
   $("runtimeConfigStatus").textContent=[
     "项目: "+selectedProjectKey,
+    "Provider Control: "+providerControl,
     "Adapter: "+status,
+    "项目证据: "+runtimeEvidence,
     "接管运行时: "+(value?.enabled===true?"YES":"NO"),
     "配置修订: "+(value?.revision??"-"),
     "已保存独立密钥: "+configuredSecrets
@@ -868,7 +913,10 @@ async function saveProjectRuntimeConfig(){
   const original=button.textContent;
   button.textContent="保存中…";
   try{
-    const draft=collectRuntimeConfig();
+    const draft=validateProjectRuntimeDraft(
+      selectedProjectKey,
+      collectRuntimeConfig()
+    );
     const response=await api("runtime_save","POST",{
       config:draft.config,
       secrets:draft.secrets,
