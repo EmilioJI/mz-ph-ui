@@ -707,21 +707,24 @@ const XIAOSHUTONG_MODEL_PROFILES=Object.freeze({
     model_runtime_profile:"ZHIPU_GLM47",
     model_base_url:"https://open.bigmodel.cn/api/paas/v4",
     model_name:"glm-4.7",
-    model_thinking_enabled:false
+    model_thinking_enabled:false,
+    minimum_max_tokens:1
   }),
   ZHIPU_GLM53_FLASH:Object.freeze({
     model_provider:"OPENAI_COMPATIBLE",
     model_runtime_profile:"ZHIPU_GLM53_FLASH",
     model_base_url:"https://open.bigmodel.cn/api/paas/v4",
     model_name:"glm-5.3-flash",
-    model_thinking_enabled:true
+    model_thinking_enabled:true,
+    minimum_max_tokens:512
   }),
   DEEPSEEK_FLASH:Object.freeze({
     model_provider:"OPENAI_COMPATIBLE",
     model_runtime_profile:"DEEPSEEK_FLASH",
     model_base_url:"https://api.deepseek.com",
     model_name:"deepseek-flash",
-    model_thinking_enabled:false
+    model_thinking_enabled:false,
+    minimum_max_tokens:1
   })
 });
 
@@ -753,6 +756,11 @@ function validateXiaoshutongRuntimeDraft(config){
         "模型运行档与 Base URL / Model / Thinking 不一致，请重新选择受控预设"
       );
     }
+    if(maxTokens<rule.minimum_max_tokens){
+      throw new Error(
+        "当前模型运行档至少需要 "+rule.minimum_max_tokens+" Max Tokens"
+      );
+    }
   }
   return config;
 }
@@ -772,6 +780,15 @@ function applyXiaoshutongModelPreset(profileId){
       '#runtimeConfigFields [data-runtime-key="'+key+'"]'
     );
     if(input)input.value=String(value);
+  }
+  const maxTokensInput=document.querySelector(
+    '#runtimeConfigFields [data-runtime-key="model_max_tokens"]'
+  );
+  if(
+    maxTokensInput
+    &&Number(maxTokensInput.value)<preset.minimum_max_tokens
+  ){
+    maxTokensInput.value=String(preset.minimum_max_tokens);
   }
   $("runtimeConfigStatus").className="status top-gap";
   $("runtimeConfigStatus").textContent=[
