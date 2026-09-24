@@ -228,17 +228,20 @@ function normalizedProjectRuntimeConfig(projectKey,raw){
         ZHIPU_GLM47:{
           base_url:"https://open.bigmodel.cn/api/paas/v4",
           model:"glm-4.7",
-          thinking:false
+          thinking:false,
+          minimum_max_tokens:1
         },
         ZHIPU_GLM53_FLASH:{
           base_url:"https://open.bigmodel.cn/api/paas/v4",
           model:"glm-5.3-flash",
-          thinking:true
+          thinking:true,
+          minimum_max_tokens:512
         },
         DEEPSEEK_FLASH:{
           base_url:"https://api.deepseek.com",
           model:"deepseek-flash",
-          thinking:false
+          thinking:false,
+          minimum_max_tokens:1
         }
       };
       const rule=profiles[profile];
@@ -249,6 +252,9 @@ function normalizedProjectRuntimeConfig(projectKey,raw){
         ||thinking!==rule.thinking
       ){
         throw Error("XST runtime profile must exactly match approved endpoint/model/thinking");
+      }
+      if(maxTokens<rule.minimum_max_tokens){
+        throw Error("XST runtime profile max tokens below approved minimum");
       }
     }
 
