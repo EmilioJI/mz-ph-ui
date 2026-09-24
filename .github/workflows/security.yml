@@ -128,11 +128,14 @@ jobs:
               'runtimeGroupMeta',
               'runtimePreset',
               'ZHIPU_GLM47',
+              'ZHIPU_GLM53_FLASH',
               'DEEPSEEK_FLASH',
               'API Key 未读取、未覆盖',
               'XIAOSHUTONG_MODEL_PROFILES',
               'validateXiaoshutongRuntimeDraft',
               '模型运行档与 Base URL / Model / Thinking 不一致',
+              'glm-5.3-flash',
+              '智谱新一代 Flash · Thinking 必开',
           ):
               if marker not in app:
                   raise SystemExit("staged project runtime contract missing: " + marker)

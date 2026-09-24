@@ -709,6 +709,13 @@ const XIAOSHUTONG_MODEL_PROFILES=Object.freeze({
     model_name:"glm-4.7",
     model_thinking_enabled:false
   }),
+  ZHIPU_GLM53_FLASH:Object.freeze({
+    model_provider:"OPENAI_COMPATIBLE",
+    model_runtime_profile:"ZHIPU_GLM53_FLASH",
+    model_base_url:"https://open.bigmodel.cn/api/paas/v4",
+    model_name:"glm-5.3-flash",
+    model_thinking_enabled:true
+  }),
   DEEPSEEK_FLASH:Object.freeze({
     model_provider:"OPENAI_COMPATIBLE",
     model_runtime_profile:"DEEPSEEK_FLASH",
@@ -785,6 +792,7 @@ function renderRuntimePresetPanel(projectKey){
   panel.classList.remove("hidden");
   const presets=[
     ["ZHIPU_GLM47","GLM-4.7","现有受控保底"],
+    ["ZHIPU_GLM53_FLASH","GLM-5.3-Flash","智谱新一代 Flash · Thinking 必开"],
     ["DEEPSEEK_FLASH","DeepSeek Flash","低时延候选"]
   ];
   for(const [id,title,summary] of presets){
