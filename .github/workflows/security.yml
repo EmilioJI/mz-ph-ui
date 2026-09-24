@@ -44,6 +44,8 @@ jobs:
               'DEEPSEEK_FLASH',
               'glm-5.3-flash',
               'XST runtime profile must exactly match approved endpoint/model/thinking',
+              'minimum_max_tokens',
+              'XST runtime profile max tokens below approved minimum',
               'homework_ocr_timeout_seconds',
               'homework_multimodal_response_mode',
               'homework_multimodal_timeout_seconds',
