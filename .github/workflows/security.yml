@@ -55,6 +55,8 @@ jobs:
               'id="runtimeConfigFields"',
               'id="runtimeSaveBtn"',
               'id="runtimeAdapterBadge"',
+              'id="runtimePresetPanel"',
+              'id="runtimePresetBar"',
           ):
               if marker not in workspace:
                   raise SystemExit("project runtime staging surface missing: " + marker)
@@ -122,6 +124,15 @@ jobs:
               'data-secret-slot',
               '已保存到独立 Vault（留空保持）',
               '不接管运行时',
+              'applyXiaoshutongModelPreset',
+              'runtimeGroupMeta',
+              'runtimePreset',
+              'ZHIPU_GLM47',
+              'DEEPSEEK_FLASH',
+              'API Key 未读取、未覆盖',
+              'XIAOSHUTONG_MODEL_PROFILES',
+              'validateXiaoshutongRuntimeDraft',
+              '模型运行档与 Base URL / Model / Thinking 不一致',
           ):
               if marker not in app:
                   raise SystemExit("staged project runtime contract missing: " + marker)
