@@ -212,6 +212,32 @@
         <button id="runtimeReloadBtn" class="secondary" type="button">恢复已保存草稿</button>
       </div>
       <div id="runtimeConfigStatus" class="status top-gap">尚未加载</div>
+
+      <div id="runtimeConsumerPanel" class="hidden result-block top-gap">
+        <div class="section-title">
+          <div>
+            <div class="result-title">服务器 Runtime Token</div>
+            <p class="muted">仅用于小书童 Core API → Operations Hub 的服务器到服务器读取。当前 consumer 强制保持关闭。</p>
+          </div>
+          <span id="runtimeConsumerBadge" class="badge">未配置</span>
+        </div>
+        <div class="policy-note">
+          “生成新 Token”只会把 SHA-256 摘要保存到后台；原 Token 只在本页显示一次。不要把它放进 Android、网页、Git、聊天记录或截图。
+        </div>
+        <div id="runtimeConsumerTokenWrap" class="hidden top-gap">
+          <label for="runtimeConsumerToken">一次性 Runtime Token</label>
+          <div class="secret-row">
+            <input id="runtimeConsumerToken" type="password" readonly autocomplete="off">
+            <button id="runtimeConsumerCopyBtn" class="secondary" type="button">复制</button>
+          </div>
+          <p class="field-note">复制并放入受控服务器环境变量 XST_OPS_RUNTIME_TOKEN。离开/刷新页面后无法从 Hub 找回原值，只能再次轮换。</p>
+        </div>
+        <div class="row top-gap">
+          <button id="runtimeConsumerRotateBtn" class="secondary" type="button">生成新 Token（保持禁用）</button>
+          <button id="runtimeConsumerReloadBtn" class="ghost" type="button">刷新 Token 状态</button>
+        </div>
+        <div id="runtimeConsumerStatus" class="status top-gap">尚未加载</div>
+      </div>
     </section>
 
     <section id="mengzhengModelPresets" class="card project-module">
