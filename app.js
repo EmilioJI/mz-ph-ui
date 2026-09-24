@@ -18,6 +18,7 @@ let backupTotpFactorId="";
 let opsMemberships=[];
 let selectedProjectKey=sessionStorage.getItem("mz_ops_project")||"mengzheng";
 let projectRuntimeSnapshot=null;
+let runtimeConsumerRawToken="";
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -729,6 +730,94 @@ function collectRuntimeConfig(){
   return {config,secrets};
 }
 
+function base64Url(bytes){
+  let binary="";
+  for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+
+async function sha256Hex(value){
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+}
+
+function clearRuntimeConsumerToken(){
+  runtimeConsumerRawToken="";
+  $("runtimeConsumerToken").value="";
+  $("runtimeConsumerTokenWrap").classList.add("hidden");
+}
+
+function renderRuntimeConsumerStatus(status){
+  const panel=$("runtimeConsumerPanel");
+  if(selectedProjectKey!=="xiaoshutong"){
+    panel.classList.add("hidden");
+    clearRuntimeConsumerToken();
+    return;
+  }
+  panel.classList.remove("hidden");
+  const configured=status?.token_configured===true;
+  const enabled=status?.enabled===true;
+  $("runtimeConsumerBadge").textContent=enabled
+    ?"Consumer · ENABLED"
+    :configured
+      ?"Consumer · 已配置 / 禁用"
+      :"Consumer · 未配置";
+  $("runtimeConsumerStatus").className="status top-gap "+(enabled?"bad":"");
+  $("runtimeConsumerStatus").textContent=[
+    "Token digest: "+(configured?"CONFIGURED":"NOT_CONFIGURED"),
+    "Consumer enabled: "+(enabled?"YES":"NO"),
+    "最近轮换: "+(status?.rotated_at||"-"),
+    "最近使用: "+(status?.last_used_at||"-"),
+    enabled
+      ?"警告：consumer 已启用；应同时确认 runtime adapter 是否经过单独批准。"
+      :"安全状态：当前 token 无法调用 runtime endpoint。"
+  ].join("\n");
+}
+
+async function loadRuntimeConsumerStatus(){
+  if(selectedProjectKey!=="xiaoshutong"){
+    renderRuntimeConsumerStatus(null);
+    return;
+  }
+  const response=await api(
+    "runtime_consumer_status","GET",null,{project:selectedProjectKey}
+  );
+  renderRuntimeConsumerStatus(response.status||{});
+}
+
+async function rotateRuntimeConsumerToken(){
+  if(selectedProjectKey!=="xiaoshutong")return;
+  const button=$("runtimeConsumerRotateBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="生成中…";
+  clearRuntimeConsumerToken();
+  try{
+    const random=new Uint8Array(32);
+    crypto.getRandomValues(random);
+    const rawToken="xst_ops_"+base64Url(random);
+    const digest=await sha256Hex(rawToken);
+
+    const response=await api("runtime_consumer_rotate","POST",{
+      token_sha256:digest
+    },{project:selectedProjectKey});
+
+    runtimeConsumerRawToken=rawToken;
+    $("runtimeConsumerToken").value=rawToken;
+    $("runtimeConsumerTokenWrap").classList.remove("hidden");
+    renderRuntimeConsumerStatus(response.status||{});
+    $("runtimeConsumerStatus").className="status top-gap ok";
+    $("runtimeConsumerStatus").textContent+=
+      "\n新 Token 只在当前页面内存中存在；后台仅保存 SHA-256，consumer 仍保持禁用。";
+  }catch(error){
+    $("runtimeConsumerStatus").className="status top-gap bad";
+    $("runtimeConsumerStatus").textContent="Token 轮换失败："+error.message;
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
 async function loadProjectRuntimeConfig(){
   const specs=runtimeSpecsFor(selectedProjectKey);
   if(!specs.length){
@@ -1191,9 +1280,14 @@ async function applyProjectSelection(){
   await loadAudit();
   if(selectedProjectKey==="mengzheng"){
     renderRuntimeConfig(null);
+    renderRuntimeConsumerStatus(null);
     await loadMengzhengConfig();
   }else{
     await loadProjectRuntimeConfig();
+    await loadRuntimeConsumerStatus().catch(error=>{
+      $("runtimeConsumerStatus").className="status top-gap bad";
+      $("runtimeConsumerStatus").textContent="Runtime Token 状态加载失败："+error.message;
+    });
   }
 }
 
@@ -1286,6 +1380,7 @@ function logout(){
   mfaFactorId="";
   mfaMode="";
   backupTotpFactorId="";
+  runtimeConsumerRawToken="";
   $("api_key").value="";
   $("jev_api_key").value="";
   $("mfaCode").value="";
@@ -1366,6 +1461,23 @@ $("runtimeReloadBtn").addEventListener("click",()=>loadProjectRuntimeConfig().ca
   $("runtimeConfigStatus").className="status top-gap bad";
   $("runtimeConfigStatus").textContent="恢复草稿失败："+error.message;
 }));
+$("runtimeConsumerRotateBtn").addEventListener("click",rotateRuntimeConsumerToken);
+$("runtimeConsumerReloadBtn").addEventListener("click",()=>loadRuntimeConsumerStatus().catch(error=>{
+  $("runtimeConsumerStatus").className="status top-gap bad";
+  $("runtimeConsumerStatus").textContent=error.message;
+}));
+$("runtimeConsumerCopyBtn").addEventListener("click",async()=>{
+  if(!runtimeConsumerRawToken)return;
+  try{
+    await navigator.clipboard.writeText(runtimeConsumerRawToken);
+    $("runtimeConsumerStatus").className="status top-gap ok";
+    $("runtimeConsumerStatus").textContent+="\n一次性 Token 已复制到剪贴板。";
+  }catch(_e){
+    $("runtimeConsumerToken").select();
+    $("runtimeConsumerStatus").className="status top-gap";
+    $("runtimeConsumerStatus").textContent+="\n已选中 Token，请手动复制。";
+  }
+});
 $("auditReloadBtn").addEventListener("click",loadAudit);
 $("securityReloadBtn").addEventListener("click",()=>loadSecuritySettings().catch(error=>{
   $("securityStatus").className="status top-gap bad";
