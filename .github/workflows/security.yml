@@ -122,6 +122,9 @@ jobs:
               'ZHIPU_GLM47',
               'DEEPSEEK_FLASH',
               'API Key 未读取、未覆盖',
+              'XIAOSHUTONG_MODEL_PROFILES',
+              'validateXiaoshutongRuntimeDraft',
+              '模型运行档与 Base URL / Model / Thinking 不一致',
           ):
               if marker not in app:
                   raise SystemExit("staged project runtime contract missing: " + marker)
