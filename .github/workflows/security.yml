@@ -58,6 +58,14 @@ jobs:
           ):
               if marker not in workspace:
                   raise SystemExit("project runtime staging surface missing: " + marker)
+          for marker in (
+              'id="runtimeConsumerPanel"',
+              'id="runtimeConsumerToken"',
+              'id="runtimeConsumerRotateBtn"',
+              'id="runtimeConsumerBadge"',
+          ):
+              if marker not in workspace:
+                  raise SystemExit("runtime consumer provisioning surface missing: " + marker)
           if 'id="projectSelect" disabled' in workspace:
               raise SystemExit("project selector must be driven by authorized memberships")
           for marker in (
@@ -117,6 +125,25 @@ jobs:
           ):
               if marker not in app:
                   raise SystemExit("staged project runtime contract missing: " + marker)
+          for marker in (
+              'new Uint8Array(32)',
+              'crypto.getRandomValues',
+              'sha256Hex(rawToken)',
+              'token_sha256:digest',
+              'runtime_consumer_rotate',
+              'runtimeConsumerRawToken',
+              'consumer 仍保持禁用',
+          ):
+              if marker not in app:
+                  raise SystemExit("runtime consumer digest-only contract missing: " + marker)
+          for forbidden_runtime_marker in (
+              'raw_token:',
+              'sessionStorage.setItem("runtimeConsumer',
+              'localStorage.setItem("runtimeConsumer',
+              'runtime_consumer_enable',
+          ):
+              if forbidden_runtime_marker in app:
+                  raise SystemExit("runtime consumer activation/secret boundary violated: " + forbidden_runtime_marker)
           if 'value=secretStates' in app or 'input.value=secretStates' in app:
               raise SystemExit("saved project secrets must never be prefilled into browser inputs")
           if 'sessionStorage.setItem("backupTotp' in app:
