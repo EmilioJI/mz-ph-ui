@@ -7,9 +7,16 @@
   const params=new URLSearchParams(hash.slice(1));
   const type=String(params.get("type")||"").toLowerCase();
   const accessToken=params.get("access_token")||"";
-  if(!accessToken||!(type==="invite"||type==="recovery"))return;
+  if(!accessToken)return;
 
-  // Keep the credential entirely in the browser URL fragment. Fragments are not
-  // sent in HTTP requests; workspace.html consumes and clears it after password setup.
-  window.location.replace("./workspace.html"+hash);
+  // URL fragments are not sent in HTTP requests. Keep the token in the browser
+  // and route it to the correct auth surface without copying it elsewhere.
+  if(type==="invite"){
+    window.location.replace("./workspace.html"+hash);
+    return;
+  }
+
+  if(["recovery","signup","email","magiclink"].includes(type)||!type){
+    window.location.replace("./account.html"+hash);
+  }
 })();
