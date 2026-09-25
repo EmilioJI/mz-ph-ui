@@ -103,3 +103,14 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
 @media(max-width:780px){
   .runtime-presets{grid-template-columns:1fr}
 }
+
+
+/* Public account center */
+.account-wrap{max-width:860px}
+.account-hero{align-items:center}
+.account-shell{max-width:760px;margin:0 auto}
+.account-nav{display:flex;gap:10px;max-width:760px;margin:0 auto 6px}
+.account-nav-btn{background:#efe5d8;color:#5d4939;border:1px solid #d9c9b7}
+.account-nav-btn.active{background:#654733;color:#fff;border-color:#654733}
+.account-shell .auth-card{max-width:none}
+.account-shell .status{overflow-wrap:anywhere}
