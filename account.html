@@ -140,7 +140,42 @@
           <input id="signedInEmail" disabled>
         </div>
       </div>
+      <div class="result-block top-gap">
+        <div class="section-title">
+          <div>
+            <div class="result-title">安全设置</div>
+            <h2>多因素认证设备</h2>
+            <p class="muted">普通账户不强制使用 MFA。若此前绑定过验证器，可在这里自行移除。</p>
+          </div>
+          <span id="accountMfaBadge" class="badge">检查中</span>
+        </div>
+
+        <div id="accountMfaEmpty" class="policy-note hidden">
+          当前账号没有已验证的 TOTP 验证器。
+        </div>
+
+        <div id="accountMfaPanel" class="hidden">
+          <div class="grid">
+            <div class="full">
+              <label for="accountMfaFactor">已绑定验证器</label>
+              <select id="accountMfaFactor"></select>
+            </div>
+            <div class="full">
+              <label for="accountMfaCode">当前动态验证码</label>
+              <input id="accountMfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000">
+              <p class="field-note">删除已验证因子前，Supabase 要求当前会话先通过该因子的二次验证。</p>
+            </div>
+          </div>
+          <div class="row top-gap">
+            <button id="accountMfaRemoveBtn" class="secondary" type="button">验证并删除此 MFA</button>
+          </div>
+        </div>
+
+        <div id="accountMfaStatus" class="status top-gap">正在检查安全状态…</div>
+      </div>
+
       <div class="row top-gap">
+        <button id="accountMfaReloadBtn" class="secondary" type="button">刷新安全状态</button>
         <button id="signedOutBtn" class="ghost" type="button">退出本页</button>
         <a class="ghost-link" href="./">返回项目页</a>
       </div>
