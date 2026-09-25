@@ -1588,6 +1588,44 @@ async function bootstrapAuthenticatedSession(){
   await enterOperationsHub();
 }
 
+async function requestPasswordRecovery(){
+  const email=$("email").value.trim();
+  if(!email||!email.includes("@")){
+    alert("请先输入要恢复的管理员邮箱。");
+    $("email").focus();
+    return;
+  }
+
+  const button=$("forgotPasswordBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="正在发送…";
+  try{
+    const redirectTo=new URL("./",window.location.href).href;
+    const response=await fetch(
+      BASE+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirectTo),
+      {
+        method:"POST",
+        headers:{
+          apikey:PUB,
+          "Content-Type":"application/json",
+          "Accept":"application/json"
+        },
+        body:JSON.stringify({email})
+      }
+    );
+    if(!response.ok){
+      let value={};
+      try{value=await response.json()}catch(_e){}
+      throw new Error(value?.msg||value?.message||"暂时无法发送密码重置邮件");
+    }
+    alert("如果该邮箱已注册，密码重置邮件已发送。请从邮件打开链接继续。");
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
 async function signIn(){
   const email=$("email").value.trim();
   const password=$("password").value;
@@ -1701,6 +1739,7 @@ $("confirmPassword").addEventListener("keydown",event=>{
     $("passwordSetupStatus").textContent=error.message;
   });
 });
+$("forgotPasswordBtn").addEventListener("click",()=>requestPasswordRecovery().catch(error=>alert(error.message)));
 $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.message)));
 $("password").addEventListener("keydown",event=>{
   if(event.key==="Enter")signIn().catch(error=>alert(error.message));
