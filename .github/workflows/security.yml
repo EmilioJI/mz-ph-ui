@@ -220,6 +220,42 @@ jobs:
                       raise SystemExit("Fuzi APK SHA-256 invalid")
                   if not isinstance(size, int) or size <= 0 or size > 100 * 1024 * 1024:
                       raise SystemExit("Fuzi APK size violates release limit")
+                  import urllib.request
+                  tag = "fuzi-v" + str(value["latest_version_name"])
+                  asset_name = "FuziPartner-v" + str(value["latest_version_name"]) + ".apk"
+                  api_url = (
+                      "https://api.github.com/repos/EmilioJI/mz-ph-ui/releases/tags/"
+                      + tag
+                  )
+                  request = urllib.request.Request(
+                      api_url,
+                      headers={
+                          "Accept": "application/vnd.github+json",
+                          "User-Agent": "mz-ph-ui-public-security-gate",
+                          "X-GitHub-Api-Version": "2022-11-28",
+                      },
+                  )
+                  try:
+                      with urllib.request.urlopen(request, timeout=10) as response:
+                          release = json.load(response)
+                  except Exception as error:
+                      raise SystemExit("approved Fuzi Release metadata is unavailable") from error
+
+                  if release.get("draft") or release.get("prerelease"):
+                      raise SystemExit("Fuzi stable manifest may not reference draft/prerelease")
+                  assets = [
+                      asset for asset in release.get("assets", [])
+                      if asset.get("name") == asset_name
+                  ]
+                  if len(assets) != 1:
+                      raise SystemExit("Fuzi Release must contain exactly one approved APK asset")
+                  asset = assets[0]
+                  if asset.get("state") != "uploaded":
+                      raise SystemExit("Fuzi APK asset is not fully uploaded")
+                  if int(asset.get("size", -1)) != size:
+                      raise SystemExit("Fuzi APK asset size does not match manifest")
+                  if str(asset.get("digest") or "").lower() != "sha256:" + sha:
+                      raise SystemExit("Fuzi APK asset digest does not match manifest")
 
           for marker in ('id="model_select"', 'id="model_custom"'):
               if marker not in workspace:
