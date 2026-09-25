@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "product": "fuzi-partner",
+  "channel": "stable",
+  "latest_version_code": 3,
+  "latest_version_name": "0.2.1",
+  "minimum_supported_version_code": 3,
+  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.1/FuziPartner-v0.2.1.apk",
+  "apk_sha256": "edbb91ac601af0c8f05b1ac59f7d7bf79e36599a21d352f9c513f9e9ecca4da7",
+  "apk_size": 92300791,
+  "signer_cert_sha256": "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC",
+  "release_notes": "v0.2.1 当前稳定版本；v0.2.2+ 使用本策略文件判断可选更新与最低支持版本。",
+  "published_at": "2026-09-25T14:56:53Z"
+}
