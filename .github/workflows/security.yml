@@ -386,6 +386,7 @@ jobs:
               'id="projectBranch"',
               'id="projectCapabilities"',
               'id="mengzhengModelPresets"',
+              'id="mengzhengAiEntitlements"',
               'id="mengzhengProviderConfig"',
               'id="mengzhengJevConfig"',
           ):
@@ -452,6 +453,9 @@ jobs:
               'renderProjectSelection',
               '{project:selectedProjectKey}',
               'selectedProjectKey==="mengzheng"',
+              'loadAiEntitlements',
+              'entitlement_save',
+              'daily_call_limit',
               'XST_*',
               'Judge / Reply / Vision 已独立建模',
           ):

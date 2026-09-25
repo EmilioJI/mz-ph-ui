@@ -307,6 +307,29 @@
       <div id="policy_note" class="policy-note"></div>
     </section>
 
+    <section id="mengzhengAiEntitlements" class="card project-module">
+      <div class="section-title">
+        <div>
+          <h2>AI 用户额度</h2>
+          <p class="muted">所有注册用户默认开通蒙正规划引擎，每日 30 次。可在此按账号调整开关与每日额度。</p>
+        </div>
+        <span id="aiEntitlementBadge" class="badge">默认 30 次/日</span>
+      </div>
+
+      <div class="grid">
+        <div class="full">
+          <label for="aiEntitlementSearch">查找账号</label>
+          <input id="aiEntitlementSearch" type="search" autocomplete="off" placeholder="邮箱或显示名称">
+        </div>
+      </div>
+      <div class="row top-gap">
+        <button id="aiEntitlementSearchBtn" type="button">搜索</button>
+        <button id="aiEntitlementReloadBtn" class="secondary" type="button">刷新全部</button>
+      </div>
+      <div id="aiEntitlementSummary" class="status top-gap">尚未加载</div>
+      <div id="aiEntitlementList" class="audit-list top-gap">尚未加载账号额度</div>
+    </section>
+
     <section id="mengzhengProviderConfig" class="card project-module">
       <div class="section-title">
         <div>
