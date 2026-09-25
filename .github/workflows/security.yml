@@ -400,7 +400,7 @@ jobs:
               if token in text:
                   raise SystemExit("forbidden public secret marker: " + token)
 
-          if "localStorage" in text:
+          if "localStorage" in app:
               raise SystemExit("admin JWT must not persist in localStorage")
           if "mz_ai_admin_token" in app:
               raise SystemExit("admin bearer token must remain memory-only")
