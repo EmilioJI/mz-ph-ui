@@ -1601,7 +1601,7 @@ async function requestPasswordRecovery(){
   const original=button.textContent;
   button.textContent="正在发送…";
   try{
-    const redirectTo=new URL("./",window.location.href).href;
+    const redirectTo=new URL("./workspace.html",window.location.href).href;
     const response=await fetch(
       BASE+"/auth/v1/recover?redirect_to="+encodeURIComponent(redirectTo),
       {

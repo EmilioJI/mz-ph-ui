@@ -22,10 +22,12 @@ jobs:
           from pathlib import Path
           import re
 
-          files = [Path("index.html"), Path("workspace.html"), Path("style.css"), Path("entry.js"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
+          files = [Path("index.html"), Path("workspace.html"), Path("account.html"), Path("style.css"), Path("entry.js"), Path("account.js"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
           text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
           root = Path("index.html").read_text(encoding="utf-8")
           workspace = Path("workspace.html").read_text(encoding="utf-8")
+          account = Path("account.html").read_text(encoding="utf-8")
+          account_js = Path("account.js").read_text(encoding="utf-8")
           app = Path("app.js").read_text(encoding="utf-8")
           edge = Path("supabase/functions/p2-ai-provider-admin/index.ts").read_text(encoding="utf-8")
 
@@ -224,6 +226,37 @@ jobs:
           if 'name="robots"' not in root or "noindex" not in root:
               raise SystemExit("public root noindex directive missing")
 
+          for marker in (
+              'id="loginStage"',
+              'id="registerStage"',
+              'id="recoveryStage"',
+              'id="resetStage"',
+              'id="signedInStage"',
+          ):
+              if marker not in account:
+                  raise SystemExit("ordinary account center surface missing: " + marker)
+          for marker in (
+              '/auth/v1/signup',
+              '/auth/v1/token?grant_type=password',
+              '/auth/v1/recover',
+              '/auth/v1/resend',
+              '/auth/v1/user',
+              'history.replaceState',
+          ):
+              if marker not in account_js:
+                  raise SystemExit("ordinary account auth contract missing: " + marker)
+          for forbidden_account_marker in (
+              'p2-ai-provider-admin',
+              'Operations Hub',
+              'runtime_consumer',
+              'provider.secret.write',
+              'mz_ai_admin_token',
+          ):
+              if forbidden_account_marker in account or forbidden_account_marker in account_js:
+                  raise SystemExit("ordinary account center crossed admin boundary: " + forbidden_account_marker)
+          if "localStorage" in account_js or "sessionStorage" in account_js:
+              raise SystemExit("ordinary account center must not persist auth tokens in browser storage")
+
           forbidden = [
               "sb_secret_",
               "service_role",
@@ -258,4 +291,5 @@ jobs:
       - name: Verify JavaScript syntax
         run: |
           node --check entry.js
+          node --check account.js
           node --check app.js

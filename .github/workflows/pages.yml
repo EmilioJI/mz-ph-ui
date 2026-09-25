@@ -6,8 +6,10 @@ on:
     paths:
       - "index.html"
       - "workspace.html"
+      - "account.html"
       - "style.css"
       - "entry.js"
+      - "account.js"
       - "app.js"
       - ".nojekyll"
       - ".github/workflows/pages.yml"
