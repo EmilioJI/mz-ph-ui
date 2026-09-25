@@ -258,6 +258,120 @@ jobs:
                   if str(asset.get("digest") or "").lower() != "sha256:" + sha:
                       raise SystemExit("Fuzi APK asset digest does not match manifest")
 
+          update_policy_v2 = Path("updates/fuzi/v2/policy.json")
+          if not update_policy_v2.exists():
+              raise SystemExit("Fuzi v2 update policy is required")
+
+          import json
+          import urllib.request
+          from urllib.parse import urlparse
+
+          policy = json.loads(update_policy_v2.read_text(encoding="utf-8"))
+          policy_keys = {
+              "schema_version",
+              "product",
+              "channel",
+              "latest_version_code",
+              "latest_version_name",
+              "minimum_supported_version_code",
+              "download_url",
+              "apk_sha256",
+              "apk_size",
+              "signer_cert_sha256",
+              "release_notes",
+              "published_at",
+          }
+          if set(policy) != policy_keys:
+              raise SystemExit("Fuzi v2 policy keys must match frozen schema exactly")
+          if policy["schema_version"] != 2:
+              raise SystemExit("Fuzi v2 policy schema_version must be 2")
+          if policy["product"] != "fuzi-partner" or policy["channel"] != "stable":
+              raise SystemExit("Fuzi v2 policy identity mismatch")
+
+          latest_code = policy["latest_version_code"]
+          minimum_code = policy["minimum_supported_version_code"]
+          latest_name = str(policy["latest_version_name"])
+          if not isinstance(latest_code, int) or latest_code <= 0:
+              raise SystemExit("invalid Fuzi v2 latest versionCode")
+          if not isinstance(minimum_code, int) or minimum_code <= 0 or minimum_code > latest_code:
+              raise SystemExit("invalid Fuzi minimum_supported_version_code")
+          if not re.fullmatch(r"\d+\.\d+\.\d+", latest_name):
+              raise SystemExit("Fuzi v2 latest versionName must use stable SemVer")
+          if len(str(policy["release_notes"])) > 4000:
+              raise SystemExit("Fuzi v2 release notes too long")
+
+          expected_cert = "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC"
+          if policy["signer_cert_sha256"] != expected_cert:
+              raise SystemExit("Fuzi v2 signer certificate pin mismatch")
+
+          policy_url = policy["download_url"]
+          policy_sha = policy["apk_sha256"]
+          policy_size = policy["apk_size"]
+          parsed = urlparse(policy_url)
+          if parsed.scheme != "https" or parsed.netloc != "github.com":
+              raise SystemExit("Fuzi v2 APK download must use HTTPS github.com")
+          expected_path = (
+              "/EmilioJI/mz-ph-ui/releases/download/"
+              + "fuzi-v" + latest_name
+              + "/FuziPartner-v" + latest_name + ".apk"
+          )
+          if parsed.path != expected_path or parsed.query or parsed.fragment:
+              raise SystemExit("Fuzi v2 APK URL escaped approved Release namespace")
+          if not isinstance(policy_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", policy_sha):
+              raise SystemExit("Fuzi v2 APK SHA-256 invalid")
+          if not isinstance(policy_size, int) or policy_size <= 0 or policy_size > 100 * 1024 * 1024:
+              raise SystemExit("Fuzi v2 APK size violates release limit")
+
+          policy_tag = "fuzi-v" + latest_name
+          policy_asset_name = "FuziPartner-v" + latest_name + ".apk"
+          policy_api_url = (
+              "https://api.github.com/repos/EmilioJI/mz-ph-ui/releases/tags/"
+              + policy_tag
+          )
+          policy_request = urllib.request.Request(
+              policy_api_url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "mz-ph-ui-public-security-gate",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          try:
+              with urllib.request.urlopen(policy_request, timeout=10) as response:
+                  policy_release = json.load(response)
+          except Exception as error:
+              raise SystemExit("approved Fuzi v2 Release metadata is unavailable") from error
+
+          if policy_release.get("draft") or policy_release.get("prerelease"):
+              raise SystemExit("Fuzi v2 stable policy may not reference draft/prerelease")
+          policy_assets = [
+              asset for asset in policy_release.get("assets", [])
+              if asset.get("name") == policy_asset_name
+          ]
+          if len(policy_assets) != 1:
+              raise SystemExit("Fuzi v2 Release must contain exactly one approved APK asset")
+          policy_asset = policy_assets[0]
+          if policy_asset.get("state") != "uploaded":
+              raise SystemExit("Fuzi v2 APK asset is not fully uploaded")
+          if int(policy_asset.get("size", -1)) != policy_size:
+              raise SystemExit("Fuzi v2 APK asset size does not match policy")
+          if str(policy_asset.get("digest") or "").lower() != "sha256:" + policy_sha:
+              raise SystemExit("Fuzi v2 APK asset digest does not match policy")
+
+          # v1 and v2 must describe the same latest immutable stable release.
+          if update_manifest.exists():
+              v1_value = json.loads(update_manifest.read_text(encoding="utf-8"))
+              for key in (
+                  "latest_version_code",
+                  "latest_version_name",
+                  "download_url",
+                  "apk_sha256",
+                  "apk_size",
+                  "signer_cert_sha256",
+              ):
+                  if policy[key] != v1_value[key]:
+                      raise SystemExit("Fuzi v1/v2 latest release metadata drift: " + key)
+
           for marker in ('id="model_select"', 'id="model_custom"'):
               if marker not in workspace:
                   raise SystemExit("provider model control missing: " + marker)
