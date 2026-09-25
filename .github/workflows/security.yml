@@ -111,7 +111,8 @@ jobs:
               raise SystemExit("security workflow must use trusted pull_request_target")
           if "\n  pull_request:\n" in security_workflow:
               raise SystemExit("untrusted pull_request trigger is forbidden for security gate")
-          if security_workflow.count("persist-credentials: false") != 2:
+          persist_marker = "persist-credentials:" + " false"
+          if sum(line.strip() == persist_marker for line in security_workflow.splitlines()) != 2:
               raise SystemExit("both security checkouts must disable credential persistence")
           if "permissions:\n  contents: read" not in security_workflow:
               raise SystemExit("security workflow permissions must remain read-only")
