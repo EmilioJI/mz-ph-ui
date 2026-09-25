@@ -1165,7 +1165,7 @@ function renderProjectSelection(){
     :"";
 
   const isMengzheng=selectedProjectKey==="mengzheng";
-  for(const id of ["mengzhengModelPresets","mengzhengProviderConfig","mengzhengJevConfig"]){
+  for(const id of ["mengzhengModelPresets","mengzhengAiEntitlements","mengzhengProviderConfig","mengzhengJevConfig"]){
     $(id).classList.toggle("hidden",!isMengzheng);
   }
 }
@@ -1519,6 +1519,122 @@ async function loadAudit(){
   }
 }
 
+function renderAiEntitlements(accounts,defaults={}){
+  const root=$("aiEntitlementList");
+  root.replaceChildren();
+  const rows=Array.isArray(accounts)?accounts:[];
+  const defaultLimit=Number(defaults.default_daily_limit||30);
+  $("aiEntitlementBadge").textContent="默认 "+defaultLimit+" 次/日";
+
+  const enabledCount=rows.filter(row=>row?.enabled===true).length;
+  $("aiEntitlementSummary").className="status top-gap "+(rows.length?"ok":"");
+  $("aiEntitlementSummary").textContent=rows.length
+    ?("已加载 "+rows.length+" 个账号 · 已启用 "+enabledCount
+      +" · 默认新账号 "+defaultLimit+" 次/日")
+    :"没有匹配的账号";
+
+  if(!rows.length){
+    root.textContent="没有匹配的账号";
+    return;
+  }
+
+  for(const account of rows){
+    const item=document.createElement("div");
+    item.className="audit-item";
+
+    const head=document.createElement("div");
+    head.className="audit-item-head";
+    const title=document.createElement("strong");
+    title.textContent=String(account.email||account.display_name||"未命名账号");
+    const badge=document.createElement("span");
+    badge.className="badge";
+    badge.textContent=account.enabled===true?"已开通":"已停用";
+    head.append(title,badge);
+
+    const meta=document.createElement("div");
+    meta.className="audit-item-meta";
+    const display=String(account.display_name||"").trim();
+    const used=Number(account.used||0);
+    const remaining=Number(account.remaining||0);
+    meta.textContent=[
+      display?("名称: "+display):"",
+      "今日使用: "+used+" / "+Number(account.daily_call_limit||0),
+      "剩余: "+remaining,
+      account.reset_at?("额度恢复: "+new Date(account.reset_at).toLocaleString()):""
+    ].filter(Boolean).join("\n");
+
+    const controls=document.createElement("div");
+    controls.className="grid top-gap";
+
+    const enabledWrap=document.createElement("div");
+    const enabledLabel=document.createElement("label");
+    enabledLabel.textContent="蒙正规划引擎";
+    const enabled=document.createElement("select");
+    enabled.innerHTML='<option value="true">启用</option><option value="false">停用</option>';
+    enabled.value=account.enabled===true?"true":"false";
+    enabledWrap.append(enabledLabel,enabled);
+
+    const limitWrap=document.createElement("div");
+    const limitLabel=document.createElement("label");
+    limitLabel.textContent="每日次数";
+    const limit=document.createElement("input");
+    limit.type="number";
+    limit.min="0";
+    limit.max="10000";
+    limit.step="1";
+    limit.value=String(Number(account.daily_call_limit||0));
+    limitWrap.append(limitLabel,limit);
+
+    controls.append(enabledWrap,limitWrap);
+
+    const actions=document.createElement("div");
+    actions.className="row top-gap";
+    const save=document.createElement("button");
+    save.type="button";
+    save.textContent="保存此账号";
+    const state=document.createElement("span");
+    state.className="field-note";
+    state.textContent="";
+    save.addEventListener("click",async()=>{
+      const dailyLimit=Number(limit.value);
+      if(!Number.isInteger(dailyLimit)||dailyLimit<0||dailyLimit>10000){
+        state.textContent="每日次数必须是 0–10000 的整数";
+        limit.focus();
+        return;
+      }
+      save.disabled=true;
+      state.textContent="正在保存…";
+      try{
+        await api("entitlement_save","POST",{
+          user_id:String(account.user_id||""),
+          enabled:enabled.value==="true",
+          daily_call_limit:dailyLimit
+        });
+        state.textContent="已保存";
+        await loadAiEntitlements();
+      }catch(error){
+        state.textContent="保存失败："+error.message;
+      }finally{
+        save.disabled=false;
+      }
+    });
+    actions.append(save,state);
+
+    item.append(head,meta,controls,actions);
+    root.appendChild(item);
+  }
+}
+
+async function loadAiEntitlements(searchValue=null){
+  const term=searchValue===null
+    ?$("aiEntitlementSearch").value.trim()
+    :String(searchValue||"").trim();
+  $("aiEntitlementSummary").className="status top-gap";
+  $("aiEntitlementSummary").textContent="正在读取账号额度…";
+  const value=await api("entitlements","GET",null,{search:term});
+  renderAiEntitlements(value.accounts||[],value);
+}
+
 async function loadMengzhengConfig(){
   const value=await api("config");
   const cfg=value.config;
@@ -1545,6 +1661,13 @@ async function loadMengzhengConfig(){
   loadDecisionConfig().catch(error=>{
     $("jevHealth").className="status top-gap bad";
     $("jevHealth").textContent="Jev 配置暂不可用；主 Provider 不受影响。\n"+error.message;
+  });
+  loadAiEntitlements().catch(error=>{
+    $("aiEntitlementSummary").className="status top-gap bad";
+    $("aiEntitlementSummary").textContent=error.code==="ACCESS_DENIED"
+      ?"当前角色无权查看或调整用户额度。"
+      :"账号额度暂不可用："+error.message;
+    $("aiEntitlementList").textContent="未加载账号额度";
   });
 }
 
@@ -1788,6 +1911,25 @@ $("reloadBtn").addEventListener("click",()=>loadConfig().catch(error=>alert(erro
 $("jevSaveBtn").addEventListener("click",saveDecision);
 $("jevTestBtn").addEventListener("click",testDecision);
 $("jevReloadBtn").addEventListener("click",()=>loadDecisionConfig().catch(error=>alert(error.message)));
+$("aiEntitlementSearchBtn").addEventListener("click",()=>loadAiEntitlements().catch(error=>{
+  $("aiEntitlementSummary").className="status top-gap bad";
+  $("aiEntitlementSummary").textContent="搜索失败："+error.message;
+}));
+$("aiEntitlementReloadBtn").addEventListener("click",()=>{
+  $("aiEntitlementSearch").value="";
+  loadAiEntitlements("").catch(error=>{
+    $("aiEntitlementSummary").className="status top-gap bad";
+    $("aiEntitlementSummary").textContent="刷新失败："+error.message;
+  });
+});
+$("aiEntitlementSearch").addEventListener("keydown",event=>{
+  if(event.key==="Enter"){
+    loadAiEntitlements().catch(error=>{
+      $("aiEntitlementSummary").className="status top-gap bad";
+      $("aiEntitlementSummary").textContent="搜索失败："+error.message;
+    });
+  }
+});
 $("projectSelect").addEventListener("change",()=>{
   const next=$("projectSelect").value;
   if(!opsMemberships.some(p=>p?.project_key===next))return;
