@@ -36,3 +36,13 @@ Use existing GitHub Actions/Pages workflows as the formal repository gate when p
 Distinguish SOURCE_REVIEW, BUILD_PASS, CI_PASS, PAGES_DEPLOY_PASS, and END_TO_END_PASS. Do not claim a layer that was not actually run.
 
 The objective is complete only when its mandatory acceptance criteria pass or an owner-approved limitation is recorded.
+
+
+## Execution ownership
+
+- The Project Owner is the final authority for product direction, priorities, risk acceptance, and high-impact decisions.
+- GPT is the primary engineering executor and orchestrator for authorized work: inspect repository state, edit code/docs/tests, create focused commits, push working branches, run or inspect GitHub Actions/self-hosted CI, diagnose failures, and iterate to acceptance.
+- GitHub is the durable source of engineering truth. Existing GitHub Actions/self-hosted runners are the default execution and formal verification path for repeatable engineering work.
+- Use the owner's authorized local machine, Remote Desktop/terminal, Android Emulator, adb, or real device when CI cannot faithfully perform the required OS/GUI/hardware/device/debugging work.
+- Do not plan around Codex, require Codex participation, or consume Codex quota as part of the normal workflow.
+- Minimize owner intervention. Ask the owner only for decisions or actions that genuinely require owner authority, unavailable credentials/2FA, or irreversible/high-impact approval.
