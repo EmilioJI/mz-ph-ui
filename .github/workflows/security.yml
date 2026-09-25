@@ -627,7 +627,7 @@ jobs:
               raise SystemExit("provider key browser-autofill hardening missing")
           if "Content-Security-Policy" not in text:
               raise SystemExit("CSP missing")
-          if "ibshmenzooxndneqwqht.supabase.co" not in text:
+          if "ftcyyvyoowkctbupzkct.supabase.co" not in text:
               raise SystemExit("backend endpoint missing")
 
           suspicious = re.findall(r'(?i)(?:sk-|sk_proj_|AIza)[A-Za-z0-9_\-]{16,}', text)
