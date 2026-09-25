@@ -39,6 +39,42 @@
     </div>
   </section>
 
+  <section id="passwordSetup" class="card auth-card hidden">
+    <div class="section-title">
+      <div>
+        <div class="eyebrow">Account setup</div>
+        <h2>设置管理员密码</h2>
+        <p id="passwordSetupIntro" class="muted">正在验证邀请会话…</p>
+      </div>
+      <span class="badge">Invite / Recovery</span>
+    </div>
+
+    <div class="grid top-gap">
+      <div class="full">
+        <label for="passwordSetupEmail">账号</label>
+        <input id="passwordSetupEmail" type="email" disabled>
+      </div>
+      <div>
+        <label for="newPassword">新密码</label>
+        <input id="newPassword" type="password" autocomplete="new-password" minlength="12">
+      </div>
+      <div>
+        <label for="confirmPassword">确认新密码</label>
+        <input id="confirmPassword" type="password" autocomplete="new-password" minlength="12">
+      </div>
+    </div>
+
+    <div class="policy-note top-gap">
+      密码只会通过 HTTPS 直接提交给 Supabase Auth；Operations Hub 不记录、不回显也不保存你的密码。建议使用密码管理器生成独立强密码。
+    </div>
+
+    <div class="row top-gap">
+      <button id="passwordSetupBtn" type="button">设置密码</button>
+      <a class="ghost-link" href="./workspace.html">取消</a>
+    </div>
+    <div id="passwordSetupStatus" class="status top-gap">等待邀请会话</div>
+  </section>
+
   <section id="mfa" class="card auth-card hidden">
     <div class="section-title">
       <div>
