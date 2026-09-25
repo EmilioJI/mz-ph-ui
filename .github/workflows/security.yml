@@ -16,13 +16,13 @@ jobs:
     steps:
       - name: Checkout main push
         if: github.event_name == 'push'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       - name: Checkout PR candidate read-only
         if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
@@ -71,9 +71,10 @@ jobs:
               "entry.js",
               "account.js",
               "app.js",
+              ".github/workflows/pages.yml",
+              ".github/workflows/security.yml",
           }
           allowed_prefixes = (
-              ".github/workflows/",
               "updates/",
           )
           for rel, _path in tracked:
@@ -110,12 +111,55 @@ jobs:
               raise SystemExit("security workflow must use trusted pull_request_target")
           if "\n  pull_request:\n" in security_workflow:
               raise SystemExit("untrusted pull_request trigger is forbidden for security gate")
-          if "persist-credentials: false" not in security_workflow:
-              raise SystemExit("security checkout must not persist GitHub credentials")
+          if security_workflow.count("persist-credentials: false") != 2:
+              raise SystemExit("both security checkouts must disable credential persistence")
           if "permissions:\n  contents: read" not in security_workflow:
               raise SystemExit("security workflow permissions must remain read-only")
+          security_uses = {
+              line.strip() for line in security_workflow.splitlines()
+              if line.strip().startswith("uses:")
+          }
+          expected_security_uses = {
+              "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+          }
+          if security_uses != expected_security_uses:
+              raise SystemExit("security workflow actions must stay pinned to the approved SHA")
+          for forbidden in ("secrets.", "github.token", "toJson(github)", "toJSON(github)"):
+              if forbidden in security_workflow:
+                  raise SystemExit("security workflow may not expose privileged GitHub context: " + forbidden)
 
           pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
+          pages_uses = {
+              line.strip() for line in pages.splitlines()
+              if line.strip().startswith("uses:")
+          }
+          expected_pages_uses = {
+              "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
+              "uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5",
+              "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
+              "uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4",
+          }
+          if pages_uses != expected_pages_uses:
+              raise SystemExit("Pages workflow actions must stay pinned to approved SHAs")
+          if pages.count("run: |") != 1:
+              raise SystemExit("Pages build must contain exactly one local shell block")
+          deploy_section = pages.split("\n  deploy:\n", 1)
+          if len(deploy_section) != 2 or "run:" in deploy_section[1]:
+              raise SystemExit("privileged Pages deploy job must contain no shell execution")
+          for forbidden in (
+              "secrets.",
+              "github.token",
+              "toJson(github)",
+              "toJSON(github)",
+              "curl ",
+              "wget ",
+              "/dev/tcp",
+              "ACTIONS_ID_TOKEN",
+          ):
+              if forbidden in pages:
+                  raise SystemExit("Pages workflow contains forbidden privileged/exfiltration marker: " + forbidden)
+          if "contents: write" in pages or "packages: write" in pages or "actions: write" in pages:
+              raise SystemExit("Pages workflow must not receive repository write permission")
           if "path: ." in pages or "path: './'" in pages or 'path: "."' in pages:
               raise SystemExit("Pages must never deploy the repository root")
           if "path: _site" not in pages:
