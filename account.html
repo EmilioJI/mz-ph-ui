@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://ibshmenzooxndneqwqht.supabase.co; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<title>蒙正 · 账号中心</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="wrap account-wrap">
+  <header class="hero account-hero">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">蒙</div>
+      <div>
+        <div class="eyebrow">MENGZHENG ACCOUNT</div>
+        <h1>账号中心</h1>
+        <p>用于注册、登录、邮箱确认和密码恢复。蒙正规划业务功能仍在移动端应用内使用。</p>
+      </div>
+    </div>
+    <div class="hero-badge">Account</div>
+  </header>
+
+  <main class="account-shell">
+    <nav id="accountNav" class="account-nav" aria-label="账号操作">
+      <button id="navLogin" class="account-nav-btn active" type="button">登录</button>
+      <button id="navRegister" class="account-nav-btn" type="button">创建账户</button>
+    </nav>
+
+    <section id="loginStage" class="card auth-card">
+      <h2>登录</h2>
+      <p class="muted">使用与你在蒙正规划 App 中相同的邮箱和密码。</p>
+      <div class="grid top-gap">
+        <div class="full">
+          <label for="loginEmail">邮箱</label>
+          <input id="loginEmail" type="email" autocomplete="username" inputmode="email">
+        </div>
+        <div class="full">
+          <label for="loginPassword">密码</label>
+          <input id="loginPassword" type="password" autocomplete="current-password">
+        </div>
+      </div>
+      <div class="row top-gap">
+        <button id="loginBtn" type="button">登录</button>
+        <button id="forgotBtn" class="secondary" type="button">忘记密码</button>
+        <a class="ghost-link" href="./">返回项目页</a>
+      </div>
+      <div id="loginStatus" class="status top-gap hidden"></div>
+    </section>
+
+    <section id="registerStage" class="card auth-card hidden">
+      <h2>创建账户</h2>
+      <p class="muted">注册后请前往邮箱完成确认。确认完成后即可使用同一账号登录蒙正规划 App。</p>
+      <div class="grid top-gap">
+        <div class="full">
+          <label for="registerEmail">邮箱</label>
+          <input id="registerEmail" type="email" autocomplete="email" inputmode="email">
+        </div>
+        <div>
+          <label for="registerPassword">密码</label>
+          <input id="registerPassword" type="password" autocomplete="new-password" minlength="8">
+        </div>
+        <div>
+          <label for="registerPasswordConfirm">确认密码</label>
+          <input id="registerPasswordConfirm" type="password" autocomplete="new-password" minlength="8">
+        </div>
+      </div>
+      <div class="policy-note top-gap">
+        建议使用独立密码，至少 8 位并同时包含字母和数字。账号中心不会记录或回显你的密码。
+      </div>
+      <div class="row top-gap">
+        <button id="registerBtn" type="button">创建账户</button>
+        <button id="resendBtn" class="secondary" type="button">重新发送确认邮件</button>
+      </div>
+      <div id="registerStatus" class="status top-gap hidden"></div>
+    </section>
+
+    <section id="recoveryStage" class="card auth-card hidden">
+      <h2>找回密码</h2>
+      <p class="muted">输入账号邮箱。若账号存在，我们会发送密码重置邮件。</p>
+      <div class="top-gap">
+        <label for="recoveryEmail">邮箱</label>
+        <input id="recoveryEmail" type="email" autocomplete="email" inputmode="email">
+      </div>
+      <div class="row top-gap">
+        <button id="recoveryBtn" type="button">发送重置邮件</button>
+        <button id="recoveryBackBtn" class="ghost" type="button">返回登录</button>
+      </div>
+      <div id="recoveryStatus" class="status top-gap hidden"></div>
+    </section>
+
+    <section id="resetStage" class="card auth-card hidden">
+      <h2 id="resetTitle">设置新密码</h2>
+      <p id="resetIntro" class="muted">安全链接已验证。请设置新的登录密码。</p>
+      <div class="grid top-gap">
+        <div>
+          <label for="resetPassword">新密码</label>
+          <input id="resetPassword" type="password" autocomplete="new-password" minlength="8">
+        </div>
+        <div>
+          <label for="resetPasswordConfirm">确认新密码</label>
+          <input id="resetPasswordConfirm" type="password" autocomplete="new-password" minlength="8">
+        </div>
+      </div>
+      <div class="row top-gap">
+        <button id="resetBtn" type="button">保存新密码</button>
+      </div>
+      <div id="resetStatus" class="status top-gap">等待设置密码</div>
+    </section>
+
+    <section id="successStage" class="card auth-card hidden">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">Account ready</div>
+          <h2 id="successTitle">操作成功</h2>
+          <p id="successMessage" class="muted">账号状态已更新。</p>
+        </div>
+        <span class="badge">完成</span>
+      </div>
+      <div class="row top-gap">
+        <button id="successLoginBtn" type="button">返回登录</button>
+        <a class="ghost-link" href="./">返回项目页</a>
+      </div>
+    </section>
+
+    <section id="signedInStage" class="card auth-card hidden">
+      <div class="section-title">
+        <div>
+          <div class="eyebrow">Signed in</div>
+          <h2>账号已验证</h2>
+          <p class="muted">本网页仅用于账号自助管理，不读取或展示你的任务、好友等业务数据。</p>
+        </div>
+        <span class="badge">普通账户</span>
+      </div>
+      <div class="grid">
+        <div class="full">
+          <label for="signedInEmail">当前邮箱</label>
+          <input id="signedInEmail" disabled>
+        </div>
+      </div>
+      <div class="row top-gap">
+        <button id="signedOutBtn" class="ghost" type="button">退出本页</button>
+        <a class="ghost-link" href="./">返回项目页</a>
+      </div>
+      <div class="policy-note top-gap">
+        网页登录会话仅保存在当前页面内存中；刷新或关闭页面后需要重新登录。
+      </div>
+    </section>
+  </main>
+
+  <footer>© 2026 MZ · account</footer>
+</div>
+<script src="./account.js" defer></script>
+</body>
+</html>
