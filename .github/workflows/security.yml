@@ -125,7 +125,13 @@ jobs:
           }
           if security_uses != expected_security_uses:
               raise SystemExit("security workflow actions must stay pinned to the approved SHA")
-          for forbidden in ("secrets.", "github.token", "toJson(github)", "toJSON(github)"):
+          privileged_markers = (
+              "secrets" + ".",
+              "github" + ".token",
+              "toJson" + "(github)",
+              "toJSON" + "(github)",
+          )
+          for forbidden in privileged_markers:
               if forbidden in security_workflow:
                   raise SystemExit("security workflow may not expose privileged GitHub context: " + forbidden)
 
