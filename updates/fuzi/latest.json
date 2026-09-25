@@ -2,12 +2,12 @@
   "schema_version": 1,
   "product": "fuzi-partner",
   "channel": "stable",
-  "latest_version_code": 2,
-  "latest_version_name": "0.2.0",
-  "download_url": null,
-  "apk_sha256": null,
-  "apk_size": null,
+  "latest_version_code": 3,
+  "latest_version_name": "0.2.1",
+  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.1/FuziPartner-v0.2.1.apk",
+  "apk_sha256": "edbb91ac601af0c8f05b1ac59f7d7bf79e36599a21d352f9c513f9e9ecca4da7",
+  "apk_size": 92300791,
   "signer_cert_sha256": "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC",
-  "release_notes": "当前稳定版本。",
-  "published_at": "2026-09-20T08:35:48Z"
+  "release_notes": "新增“关于夫子陪伴 → 检查更新”手动更新入口，并强化公开更新元数据、APK SHA-256、大小与签名证书校验；不包含 DS-V2 大规模 UI 改版。",
+  "published_at": "2026-09-25T14:56:53Z"
 }
