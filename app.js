@@ -4,6 +4,11 @@ if (window.top !== window.self) {
   document.documentElement.innerHTML = "";
   throw new Error("Framed execution blocked");
 }
+if (window.opener !== null) {
+  document.documentElement.innerHTML = "";
+  throw new Error("Opened-window execution blocked");
+}
+window.name = "";
 
 const BASE="https://ibshmenzooxndneqwqht.supabase.co";
 const PUB="sb_publishable_yqKuTHTSDSv427w71lJWbA_2DDk2_1v";
@@ -459,6 +464,7 @@ function consumePasswordSetupCallback(){
 
   passwordSetupMode=type;
   token=accessToken;
+  history.replaceState(null,"",window.location.pathname+window.location.search);
   return true;
 }
 
@@ -1681,19 +1687,33 @@ async function testProvider(mode){
   }
 }
 
-function logout(){
+function clearSensitiveBrowserState(){
   token="";
+  runtimeConsumerRawToken="";
+  for(const id of ["api_key","jev_api_key","mfaCode","mfaSecret","backupTotpSecret","backupTotpCode"]){
+    const node=$(id);
+    if(node&&"value" in node)node.value="";
+  }
+}
+
+window.addEventListener("pagehide",()=>{
+  clearSensitiveBrowserState();
+});
+window.addEventListener("pageshow",event=>{
+  if(event.persisted){
+    clearSensitiveBrowserState();
+    window.location.replace(window.location.pathname+window.location.search);
+  }
+});
+
+function logout(){
+  clearSensitiveBrowserState();
   opsAuthStatus=null;
   opsMemberships=[];
   mfaFactorId="";
   mfaMode="";
   passwordSetupMode="";
   backupTotpFactorId="";
-  runtimeConsumerRawToken="";
-  $("api_key").value="";
-  $("jev_api_key").value="";
-  $("mfaCode").value="";
-  $("mfaSecret").value="";
   setAuthStage("login");
 }
 

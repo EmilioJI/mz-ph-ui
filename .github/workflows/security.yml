@@ -427,6 +427,14 @@ jobs:
                   raise SystemExit("ordinary account center crossed admin boundary: " + forbidden_account_marker)
           if "localStorage" in account_js or "sessionStorage" in account_js:
               raise SystemExit("ordinary account center must not persist auth tokens in browser storage")
+          for marker in (
+              "window.opener!==null",
+              'window.addEventListener("pagehide"',
+              'window.addEventListener("pageshow"',
+              "clearAccountSessionMemory",
+          ):
+              if marker not in account_js:
+                  raise SystemExit("account browser-session isolation missing: " + marker)
 
           forbidden = [
               "sb_secret_",
@@ -448,6 +456,18 @@ jobs:
               raise SystemExit("admin bearer token must remain memory-only")
           if 'let token=""' not in app:
               raise SystemExit("memory-only admin token contract missing")
+          for marker in (
+              "window.opener !== null",
+              'window.addEventListener("pagehide"',
+              'window.addEventListener("pageshow"',
+              "clearSensitiveBrowserState",
+          ):
+              if marker not in app:
+                  raise SystemExit("admin browser-session isolation missing: " + marker)
+          if app.index('history.replaceState(null,"",window.location.pathname+window.location.search)') < app.index("return true;", app.index("function consumePasswordSetupCallback")):
+              pass
+          else:
+              raise SystemExit("admin callback token must be removed from URL before callback returns")
           if 'autocomplete="new-password"' not in text:
               raise SystemExit("provider key browser-autofill hardening missing")
           if "Content-Security-Policy" not in text:

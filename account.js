@@ -4,6 +4,11 @@ if(window.top!==window.self){
   document.documentElement.innerHTML="";
   throw new Error("Framed execution blocked");
 }
+if(window.opener!==null){
+  document.documentElement.innerHTML="";
+  throw new Error("Opened-window execution blocked");
+}
+window.name="";
 
 const BASE="https://ibshmenzooxndneqwqht.supabase.co";
 const PUB="sb_publishable_yqKuTHTSDSv427w71lJWbA_2DDk2_1v";
@@ -12,6 +17,25 @@ const $=id=>document.getElementById(id);
 let accessToken="";
 let callbackType="";
 let currentMfaFactors=[];
+
+function clearAccountSessionMemory(){
+  accessToken="";
+  callbackType="";
+  for(const id of ["password","newPassword","confirmPassword","accountMfaCode"]){
+    const node=$(id);
+    if(node&&"value" in node)node.value="";
+  }
+}
+
+window.addEventListener("pagehide",()=>{
+  clearAccountSessionMemory();
+});
+window.addEventListener("pageshow",event=>{
+  if(event.persisted){
+    clearAccountSessionMemory();
+    window.location.replace(window.location.pathname+window.location.search);
+  }
+});
 
 function accountUrl(){
   return new URL("./account.html",window.location.href).href;
