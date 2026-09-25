@@ -10,8 +10,8 @@ if(window.opener!==null){
 }
 window.name="";
 
-const BASE="https://ibshmenzooxndneqwqht.supabase.co";
-const PUB="sb_publishable_yqKuTHTSDSv427w71lJWbA_2DDk2_1v";
+const BASE="https://ftcyyvyoowkctbupzkct.supabase.co";
+const PUB="sb_publishable_vsp2sdBNKkqGh97lTvJRFg_Bmk7fNdO";
 const $=id=>document.getElementById(id);
 
 let accessToken="";
