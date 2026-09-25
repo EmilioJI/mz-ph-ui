@@ -3,7 +3,8 @@ name: Public Frontend Security Gate
 on:
   push:
     branches: [main]
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -13,7 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main push
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout PR candidate read-only
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
       - name: Verify public frontend boundary
         shell: bash
         run: |
@@ -90,6 +104,16 @@ jobs:
           for label, pattern in secret_patterns.items():
               if re.search(pattern, repo_text):
                   raise SystemExit("secret-shaped value found in public repository: " + label)
+
+          security_workflow = Path(".github/workflows/security.yml").read_text(encoding="utf-8")
+          if "pull_request_target:" not in security_workflow:
+              raise SystemExit("security workflow must use trusted pull_request_target")
+          if "\n  pull_request:\n" in security_workflow:
+              raise SystemExit("untrusted pull_request trigger is forbidden for security gate")
+          if "persist-credentials: false" not in security_workflow:
+              raise SystemExit("security checkout must not persist GitHub credentials")
+          if "permissions:\n  contents: read" not in security_workflow:
+              raise SystemExit("security workflow permissions must remain read-only")
 
           pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
           if "path: ." in pages or "path: './'" in pages or 'path: "."' in pages:
