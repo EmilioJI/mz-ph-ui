@@ -11,6 +11,7 @@ const $=id=>document.getElementById(id);
 
 let accessToken="";
 let callbackType="";
+let currentMfaFactors=[];
 
 function accountUrl(){
   return new URL("./account.html",window.location.href).href;
@@ -76,6 +77,7 @@ function setStage(stage){
 function resetEphemeralAuth(){
   accessToken="";
   callbackType="";
+  currentMfaFactors=[];
   history.replaceState(null,"",window.location.pathname+window.location.search);
 }
 
@@ -88,6 +90,103 @@ function showSuccess(title,message){
 
 async function loadCurrentUser(token){
   return await request("/auth/v1/user",{bearer:token});
+}
+
+function renderMfaSecurity(user){
+  const factors=Array.isArray(user?.factors)?user.factors:[];
+  currentMfaFactors=factors.filter(
+    factor=>factor?.factor_type==="totp"&&factor?.status==="verified"&&factor?.id
+  );
+
+  $("accountMfaFactor").replaceChildren();
+  currentMfaFactors.forEach((factor,index)=>{
+    const option=document.createElement("option");
+    option.value=String(factor.id);
+    const name=String(factor.friendly_name||"验证器");
+    option.textContent=(index+1)+". "+name;
+    $("accountMfaFactor").appendChild(option);
+  });
+
+  const hasFactors=currentMfaFactors.length>0;
+  $("accountMfaPanel").classList.toggle("hidden",!hasFactors);
+  $("accountMfaEmpty").classList.toggle("hidden",hasFactors);
+  $("accountMfaBadge").textContent=hasFactors
+    ?currentMfaFactors.length+" 个 TOTP"
+    :"无 MFA";
+  $("accountMfaCode").value="";
+  setStatus(
+    "accountMfaStatus",
+    hasFactors
+      ?"检测到 "+currentMfaFactors.length+" 个已验证 TOTP。删除前需要输入当前动态验证码。"
+      :"当前普通账户没有已验证 MFA；后续登录只需常规账号认证。",
+    hasFactors?"":"ok"
+  );
+}
+
+async function reloadMfaSecurity(){
+  if(!accessToken)throw new Error("登录会话已失效，请重新登录。");
+  const user=await loadCurrentUser(accessToken);
+  renderMfaSecurity(user);
+}
+
+async function removeSelectedMfa(){
+  if(!accessToken)throw new Error("登录会话已失效，请重新登录。");
+  const factorId=$("accountMfaFactor").value;
+  const code=$("accountMfaCode").value.replace(/\s+/g,"").trim();
+  if(!factorId)throw new Error("当前没有可删除的 MFA 因子。");
+  if(!/^\d{6,8}$/.test(code))throw new Error("请输入验证器当前显示的 6–8 位动态验证码。");
+
+  const button=$("accountMfaRemoveBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="验证中…";
+  setStatus("accountMfaStatus","正在验证第二因素…");
+
+  try{
+    const challenge=await request(
+      "/auth/v1/factors/"+encodeURIComponent(factorId)+"/challenge",
+      {
+        method:"POST",
+        bearer:accessToken,
+        body:{factorId}
+      }
+    );
+    if(!challenge?.id)throw new Error("无法创建 MFA 验证 challenge。");
+
+    const verified=await request(
+      "/auth/v1/factors/"+encodeURIComponent(factorId)+"/verify",
+      {
+        method:"POST",
+        bearer:accessToken,
+        body:{challenge_id:challenge.id,code}
+      }
+    );
+    const elevatedToken=verified?.access_token||verified?.session?.access_token||"";
+    if(!elevatedToken)throw new Error("MFA 验证成功，但没有取得安全会话。");
+
+    accessToken=elevatedToken;
+    button.textContent="正在删除…";
+    await request(
+      "/auth/v1/factors/"+encodeURIComponent(factorId),
+      {method:"DELETE",bearer:accessToken}
+    );
+
+    const user=await loadCurrentUser(accessToken);
+    renderMfaSecurity(user);
+    setStatus(
+      "accountMfaStatus",
+      currentMfaFactors.length===0
+        ?"MFA 已删除。新登录会话将恢复为普通 aal1 认证。"
+        :"所选 MFA 已删除；账号仍有 "+currentMfaFactors.length+" 个验证器。",
+      "ok"
+    );
+  }catch(error){
+    setStatus("accountMfaStatus",error.message,"bad");
+    throw error;
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
 }
 
 async function signIn(){
@@ -111,6 +210,7 @@ async function signIn(){
     accessToken=value.access_token;
     const user=value.user||await loadCurrentUser(accessToken);
     $("signedInEmail").value=String(user?.email||email);
+    renderMfaSecurity(user);
     setStage("signedIn");
   }catch(error){
     setStatus("loginStatus",error.message,"bad");
@@ -314,6 +414,13 @@ $("forgotBtn").addEventListener("click",()=>{
 $("recoveryBackBtn").addEventListener("click",goLogin);
 $("successLoginBtn").addEventListener("click",goLogin);
 $("signedOutBtn").addEventListener("click",goLogin);
+$("accountMfaReloadBtn").addEventListener("click",()=>reloadMfaSecurity().catch(error=>{
+  setStatus("accountMfaStatus",error.message,"bad");
+}));
+$("accountMfaRemoveBtn").addEventListener("click",()=>removeSelectedMfa().catch(()=>{}));
+$("accountMfaCode").addEventListener("keydown",event=>{
+  if(event.key==="Enter")removeSelectedMfa().catch(()=>{});
+});
 
 $("loginBtn").addEventListener("click",()=>signIn().catch(()=>{}));
 $("registerBtn").addEventListener("click",()=>register().catch(error=>setStatus("registerStatus",error.message,"bad")));
