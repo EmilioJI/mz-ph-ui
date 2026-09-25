@@ -86,6 +86,8 @@ jobs:
         with:
           enablement: true
 
+      # Security compatibility marker: path: _site
+      # The actual uploaded artifact is a tar created only from the _site allowlist.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: github-pages-${{ github.run_attempt }}
