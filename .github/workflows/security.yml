@@ -29,7 +29,6 @@ jobs:
           account = Path("account.html").read_text(encoding="utf-8")
           account_js = Path("account.js").read_text(encoding="utf-8")
           app = Path("app.js").read_text(encoding="utf-8")
-          edge = Path("supabase/functions/p2-ai-provider-admin/index.ts").read_text(encoding="utf-8")
 
 
           # Whole-repository public-boundary audit. This intentionally scans tracked
@@ -61,13 +60,15 @@ jobs:
           }
           allowed_prefixes = (
               ".github/workflows/",
-              "supabase/functions/p2-ai-provider-admin/",
               "updates/",
           )
           for rel, _path in tracked:
               if rel in allowed_exact or any(rel.startswith(prefix) for prefix in allowed_prefixes):
                   continue
               raise SystemExit("unexpected tracked path in public repository: " + rel)
+
+          if any(rel.startswith("supabase/") for rel, _path in tracked):
+              raise SystemExit("server-side Supabase source is forbidden in public repository")
 
           repo_text_parts = []
           for rel, path in tracked:
@@ -147,37 +148,6 @@ jobs:
                       raise SystemExit("Fuzi APK SHA-256 invalid")
                   if not isinstance(size, int) or size <= 0 or size > 100 * 1024 * 1024:
                       raise SystemExit("Fuzi APK size violates release limit")
-
-          for marker in (
-              'url.searchParams.get("project")',
-              'p2_ops_authorize_server',
-              'runtime_config',
-              'runtime_save',
-              'RUNTIME_ADAPTER_NOT_ACTIVE',
-              'provider.secret.write',
-              'runtime_consumer_rotate',
-              'token_sha256',
-              'raw_token_received:false',
-              'ZHIPU_GLM47',
-              'ZHIPU_GLM53_FLASH',
-              'DEEPSEEK_FLASH',
-              'glm-5.3-flash',
-              'XST runtime profile must exactly match approved endpoint/model/thinking',
-              'minimum_max_tokens',
-              'XST runtime profile max tokens below approved minimum',
-              'homework_ocr_timeout_seconds',
-              'homework_multimodal_response_mode',
-              'homework_multimodal_timeout_seconds',
-              'asr_timeout_seconds',
-              'tts_timeout_seconds',
-          ):
-              if marker not in edge:
-                  raise SystemExit("Operations Hub Edge contract missing: " + marker)
-          if 'runtime_consumer_enable' in edge:
-              raise SystemExit("runtime consumer must not expose a browser activation action")
-          edge_suspicious = re.findall(r'(?i)(?:sk-|sk_proj_|AIza)[A-Za-z0-9_\-]{16,}', edge)
-          if edge_suspicious:
-              raise SystemExit("possible secret-shaped literal detected in Edge source")
 
           for marker in ('id="model_select"', 'id="model_custom"'):
               if marker not in workspace:

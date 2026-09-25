@@ -24,3 +24,10 @@ Public update metadata may live only under `updates/`. APK binaries must never b
 The Operations Hub administrator bearer token is memory-only. It must not be persisted in `localStorage`, `sessionStorage`, IndexedDB, cookies, or static files. Reloading the page intentionally requires a new authenticated session/MFA flow.
 
 The Supabase project URL and `sb_publishable_*` browser key are public client configuration, not secrets. Service-role keys, provider API keys, private keys, runtime consumer raw tokens, user data, and private application source must never enter this repository.
+
+
+## Server-side source boundary
+
+The deployed Operations Hub Edge Function source is canonical in the private `EmilioJI/xiaoshutong-Mengzheng` repository. Server-side Supabase function source is forbidden in this public repository.
+
+This repository may expose only browser-delivered static client code and explicitly approved public update metadata. Server-side authorization, Vault/RPC implementation, private migrations, service-role logic, and private application code must remain private.
