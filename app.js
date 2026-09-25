@@ -25,6 +25,8 @@ let opsMemberships=[];
 let selectedProjectKey=sessionStorage.getItem("mz_ops_project")||"mengzheng";
 let projectRuntimeSnapshot=null;
 let runtimeConsumerRawToken="";
+let stewardDashboardDays=30;
+let stewardDashboardSnapshot=null;
 const $=id=>document.getElementById(id);
 const CUSTOM_MODEL="__custom__";
 
@@ -577,7 +579,8 @@ function capabilitySummary(capabilities){
     cloud_runtime:"Cloud",
     ci:"CI",
     release_health:"Release",
-    device_provider_settings:"Device config"
+    device_provider_settings:"Device config",
+    steward_dashboard:"Patrol BI"
   };
   return Object.entries(value)
     .map(([key,status])=>(labels[key]||key)+"="+String(status))
@@ -597,6 +600,9 @@ function projectIntegrationMessage(project){
   }
   if(key==="jev-chat-jarvis"){
     return "基础接入 + staged 配置仓已完成。Judge / Reply / Vision 已独立建模并使用 JEV 专属 Vault；Android 当前仍读取设备端设置，尚未切换到云端接管。";
+  }
+  if(key==="dev-steward"){
+    return "工程巡检控制面已接入。这里展示 18 个仓库 / 20 个 repo-ref 的只读巡检、风险趋势、覆盖状态与 GitHub 证据；不提供业务仓库写操作。";
   }
   return "项目已注册到统一认证、RBAC 与审计体系；项目专属运维适配待接入。";
 }
@@ -1142,6 +1148,243 @@ async function saveProjectRuntimeConfig(){
   }
 }
 
+
+function stewardSeverityRank(value){
+  return ({P0:0,P1:1,P2:2})[String(value||"")]??9;
+}
+
+function stewardRelativeAge(value){
+  const stamp=Date.parse(String(value||""));
+  if(!Number.isFinite(stamp))return "时间未知";
+  const seconds=Math.max(0,Math.floor((Date.now()-stamp)/1000));
+  if(seconds<60)return seconds+" 秒前";
+  if(seconds<3600)return Math.floor(seconds/60)+" 分钟前";
+  if(seconds<86400)return Math.floor(seconds/3600)+" 小时前";
+  return Math.floor(seconds/86400)+" 天前";
+}
+
+function stewardSafeEvidence(value){
+  const url=String(value||"");
+  return /^https:\/\/github\.com\/[A-Za-z0-9_.%/-]+$/.test(url)?url:"";
+}
+
+function renderStewardTrend(rows){
+  const root=$("stewardTrendChart");
+  root.replaceChildren();
+  const data=(Array.isArray(rows)?rows:[]).slice(-48);
+  if(!data.length){
+    root.textContent="暂无历史趋势；首个巡检快照写入后会自动出现。";
+    return;
+  }
+  const maxTotal=Math.max(1,...data.map(row=>
+    Number(row?.p0||0)+Number(row?.p1||0)+Number(row?.p2||0)
+  ));
+  for(const row of data){
+    const total=Number(row?.p0||0)+Number(row?.p1||0)+Number(row?.p2||0);
+    const column=document.createElement("div");
+    column.className="steward-trend-column";
+    column.title=[
+      row?.generated_at?new Date(row.generated_at).toLocaleString():"-",
+      "P0 "+Number(row?.p0||0),
+      "P1 "+Number(row?.p1||0),
+      "P2 "+Number(row?.p2||0),
+      "Coverage "+String(row?.coverage||"-")
+    ].join(" · ");
+    const stack=document.createElement("div");
+    stack.className="steward-trend-stack";
+    const height=Math.max(4,Math.round((total/maxTotal)*100));
+    stack.style.height=height+"%";
+    for(const severity of ["p0","p1","p2"]){
+      const value=Number(row?.[severity]||0);
+      if(!value)continue;
+      const segment=document.createElement("span");
+      segment.className="steward-trend-segment "+severity;
+      segment.style.flex=String(value);
+      stack.appendChild(segment);
+    }
+    if(!stack.childNodes.length){
+      const empty=document.createElement("span");
+      empty.className="steward-trend-segment empty";
+      stack.appendChild(empty);
+    }
+    column.appendChild(stack);
+    root.appendChild(column);
+  }
+}
+
+function renderStewardFindings(findings){
+  const root=$("stewardFindings");
+  root.replaceChildren();
+  const rows=(Array.isArray(findings)?findings:[])
+    .slice()
+    .sort((a,b)=>stewardSeverityRank(a?.severity)-stewardSeverityRank(b?.severity)
+      ||String(a?.repo||"").localeCompare(String(b?.repo||""))
+      ||String(a?.rule||"").localeCompare(String(b?.rule||"")))
+    .slice(0,60);
+  if(!rows.length){
+    root.textContent="当前快照没有规则告警；未覆盖能力仍需结合 Coverage 判断。";
+    return;
+  }
+  for(const finding of rows){
+    const item=document.createElement("article");
+    item.className="steward-finding severity-"+String(finding?.severity||"P2").toLowerCase();
+
+    const head=document.createElement("div");
+    head.className="steward-finding-head";
+    const badge=document.createElement("span");
+    badge.className="steward-severity";
+    badge.textContent=String(finding?.severity||"-");
+    const title=document.createElement("strong");
+    title.textContent=String(finding?.rule||"UNKNOWN");
+    head.append(badge,title);
+
+    const meta=document.createElement("div");
+    meta.className="steward-finding-meta";
+    meta.textContent=String(finding?.repo||"-")+" · "+String(finding?.ref||"-");
+
+    const message=document.createElement("p");
+    message.textContent=String(finding?.message||"");
+
+    item.append(head,meta,message);
+    const evidence=(Array.isArray(finding?.evidence)?finding.evidence:[])
+      .map(stewardSafeEvidence).filter(Boolean);
+    if(evidence.length){
+      const links=document.createElement("div");
+      links.className="steward-evidence-links";
+      evidence.forEach((url,index)=>{
+        const a=document.createElement("a");
+        a.href=url;
+        a.target="_blank";
+        a.rel="noopener noreferrer";
+        a.textContent="证据 "+(index+1);
+        links.appendChild(a);
+      });
+      item.appendChild(links);
+    }
+    root.appendChild(item);
+  }
+}
+
+function renderStewardMatrix(targets,findings){
+  const root=$("stewardMatrix");
+  root.replaceChildren();
+  const targetRows=Array.isArray(targets)?targets:[];
+  const findingRows=Array.isArray(findings)?findings:[];
+  if(!targetRows.length){
+    root.textContent="暂无项目快照。";
+    return;
+  }
+
+  const header=document.createElement("div");
+  header.className="steward-matrix-row steward-matrix-head";
+  ["Repository / Ref","Coverage","P0","P1","P2","Commit"].forEach(value=>{
+    const cell=document.createElement("span");
+    cell.textContent=value;
+    header.appendChild(cell);
+  });
+  root.appendChild(header);
+
+  for(const target of targetRows){
+    const related=findingRows.filter(finding=>
+      finding?.repo===target?.repo&&finding?.ref===target?.ref
+    );
+    const counts={P0:0,P1:0,P2:0};
+    related.forEach(item=>{
+      if(Object.prototype.hasOwnProperty.call(counts,item?.severity))counts[item.severity]+=1;
+    });
+    const row=document.createElement("div");
+    row.className="steward-matrix-row";
+    const cells=[
+      String(target?.repo||"-")+" / "+String(target?.ref||"-"),
+      String(target?.state||"-"),
+      String(counts.P0),
+      String(counts.P1),
+      String(counts.P2),
+      target?.commit?String(target.commit).slice(0,8):"-"
+    ];
+    cells.forEach((value,index)=>{
+      const cell=document.createElement("span");
+      cell.textContent=value;
+      if(index===1)cell.className="coverage-"+String(target?.state||"").toLowerCase();
+      if(index>=2&&index<=4&&Number(value)>0)cell.className="risk-count";
+      row.appendChild(cell);
+    });
+    root.appendChild(row);
+  }
+}
+
+function renderStewardLimitations(values){
+  const root=$("stewardLimitations");
+  root.replaceChildren();
+  const rows=Array.isArray(values)?values:[];
+  if(!rows.length){
+    root.textContent="当前没有额外证据边界说明。";
+    return;
+  }
+  for(const value of rows){
+    const item=document.createElement("div");
+    item.className="audit-item";
+    item.textContent=String(value||"");
+    root.appendChild(item);
+  }
+}
+
+function renderStewardDashboard(value){
+  stewardDashboardSnapshot=value||{};
+  const latest=value?.latest&&typeof value.latest==="object"?value.latest:null;
+  const findings=Array.isArray(value?.findings)?value.findings:[];
+  const targets=Array.isArray(value?.targets)?value.targets:[];
+  const badge=$("stewardCoverageBadge");
+
+  if(!latest){
+    badge.textContent="等待首个快照";
+    badge.className="badge";
+    for(const id of ["stewardKpiTargets","stewardKpiP0","stewardKpiP1","stewardKpiP2","stewardKpiReads","stewardKpiSnapshots"]){
+      $(id).textContent="0";
+    }
+    $("stewardKpiAge").textContent="尚未同步";
+    $("stewardDashboardStatus").className="status top-gap";
+    $("stewardDashboardStatus").textContent="BI 数据通道已就绪，等待下一次 Dev Steward 巡检写入。";
+  }else{
+    const coverage=String(latest.coverage||"UNKNOWN");
+    badge.textContent="Coverage · "+coverage;
+    badge.className="badge steward-coverage "+coverage.toLowerCase();
+    $("stewardKpiTargets").textContent=String(latest.targets_count??targets.length);
+    $("stewardKpiP0").textContent=String(latest.p0??0);
+    $("stewardKpiP1").textContent=String(latest.p1??0);
+    $("stewardKpiP2").textContent=String(latest.p2??0);
+    $("stewardKpiReads").textContent=String(latest.requests_used??0);
+    $("stewardKpiSnapshots").textContent=String(value?.snapshot_count??0);
+    $("stewardKpiAge").textContent=stewardRelativeAge(latest.generated_at);
+    $("stewardDashboardStatus").className="status top-gap "+(coverage==="COMPLETE"?"ok":"");
+    $("stewardDashboardStatus").textContent=[
+      "最近巡检："+new Date(latest.generated_at).toLocaleString(),
+      "Coverage："+coverage+" · Findings："+String(latest.findings_count??findings.length),
+      "GitHub run："+String(latest.github_run_id||"-")+" · Source "+String(latest.source_sha||"").slice(0,8),
+      "这里只表示工程巡检数据，不代表产品、真机或生产验收。"
+    ].join("\n");
+  }
+
+  renderStewardTrend(value?.trend||[]);
+  renderStewardFindings(findings);
+  renderStewardMatrix(targets,findings);
+  renderStewardLimitations(value?.limitations||[]);
+  document.querySelectorAll("[data-steward-days]").forEach(button=>{
+    button.classList.toggle("active",Number(button.dataset.stewardDays)===stewardDashboardDays);
+  });
+}
+
+async function loadStewardDashboard(days=stewardDashboardDays){
+  stewardDashboardDays=Math.max(1,Math.min(90,Number(days)||30));
+  $("stewardDashboardStatus").className="status top-gap";
+  $("stewardDashboardStatus").textContent="正在加载 Dev Steward 巡检数据…";
+  const response=await api("steward_dashboard","GET",null,{
+    project:"dev-steward",
+    days:stewardDashboardDays
+  });
+  renderStewardDashboard(response.dashboard||{});
+}
+
 function renderProjectSelection(){
   const project=membershipFor();
   if(!project)return;
@@ -1165,9 +1408,11 @@ function renderProjectSelection(){
     :"";
 
   const isMengzheng=selectedProjectKey==="mengzheng";
+  const isSteward=selectedProjectKey==="dev-steward";
   for(const id of ["mengzhengModelPresets","mengzhengAiEntitlements","mengzhengProviderConfig","mengzhengJevConfig"]){
     $(id).classList.toggle("hidden",!isMengzheng);
   }
+  $("stewardDashboard").classList.toggle("hidden",!isSteward);
 }
 
 function applyOpsStatus(status){
@@ -1683,6 +1928,10 @@ async function applyProjectSelection(){
     renderRuntimeConfig(null);
     renderRuntimeConsumerStatus(null);
     await loadMengzhengConfig();
+  }else if(selectedProjectKey==="dev-steward"){
+    renderRuntimeConfig(null);
+    renderRuntimeConsumerStatus(null);
+    await loadStewardDashboard(stewardDashboardDays);
   }else{
     await loadProjectRuntimeConfig();
     await loadRuntimeConsumerStatus().catch(error=>{
@@ -2006,3 +2255,17 @@ if(consumePasswordSetupCallback()){
 }else{
   setAuthStage("login");
 }
+
+
+$("stewardRefreshBtn").addEventListener("click",()=>loadStewardDashboard(stewardDashboardDays).catch(error=>{
+  $("stewardDashboardStatus").className="status top-gap bad";
+  $("stewardDashboardStatus").textContent="巡检台刷新失败："+error.message;
+}));
+document.querySelectorAll("[data-steward-days]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    loadStewardDashboard(Number(button.dataset.stewardDays)||30).catch(error=>{
+      $("stewardDashboardStatus").className="status top-gap bad";
+      $("stewardDashboardStatus").textContent="巡检台加载失败："+error.message;
+    });
+  });
+});
