@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -13,7 +15,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trusted main/PR merge
+        if: github.event_name != 'pull_request_target'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout PR candidate read-only
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
       - name: Verify public frontend boundary
         shell: bash
         run: |
@@ -21,6 +36,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+          import os
 
           files = [Path("index.html"), Path("workspace.html"), Path("account.html"), Path("style.css"), Path("entry.js"), Path("account.js"), Path("app.js"), Path("README.md"), Path("SECURITY.md")]
           text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.exists())
@@ -90,6 +106,22 @@ jobs:
           for label, pattern in secret_patterns.items():
               if re.search(pattern, repo_text):
                   raise SystemExit("secret-shaped value found in public repository: " + label)
+
+          # During the bootstrap PR this workflow still runs on pull_request.
+          # Once merged, pull_request_target uses this trusted base workflow to reject
+          # any candidate that tries to weaken the final security trigger or checkout.
+          if os.environ.get("GITHUB_EVENT_NAME") == "pull_request_target":
+              candidate_security = Path(".github/workflows/security.yml").read_text(encoding="utf-8")
+              if "pull_request_target:" not in candidate_security:
+                  raise SystemExit("candidate security workflow must retain pull_request_target")
+              if "\n  pull_request:\n" in candidate_security:
+                  raise SystemExit("candidate must remove untrusted pull_request trigger")
+              if candidate_security.count("persist-credentials: false") != 2:
+                  raise SystemExit("candidate security checkouts must disable credential persistence")
+              if "permissions:\n  contents: read" not in candidate_security:
+                  raise SystemExit("candidate security workflow must remain read-only")
+              if "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4" not in candidate_security:
+                  raise SystemExit("candidate security checkout must stay SHA-pinned")
 
           pages = Path(".github/workflows/pages.yml").read_text(encoding="utf-8")
           if "path: ." in pages or "path: './'" in pages or 'path: "."' in pages:
