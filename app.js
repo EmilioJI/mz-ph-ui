@@ -8,7 +8,7 @@ if (window.top !== window.self) {
 const BASE="https://ibshmenzooxndneqwqht.supabase.co";
 const PUB="sb_publishable_yqKuTHTSDSv427w71lJWbA_2DDk2_1v";
 const FN=BASE+"/functions/v1/p2-ai-provider-admin";
-let token=sessionStorage.getItem("mz_ai_admin_token")||"";
+let token="";
 let keyStates={};
 let decisionKeyConfigured=false;
 let opsAuthStatus=null;
@@ -459,7 +459,6 @@ function consumePasswordSetupCallback(){
 
   passwordSetupMode=type;
   token=accessToken;
-  sessionStorage.removeItem("mz_ai_admin_token");
   return true;
 }
 
@@ -514,8 +513,7 @@ async function completePasswordSetup(){
     $("confirmPassword").value="";
     token="";
     passwordSetupMode="";
-    sessionStorage.removeItem("mz_ai_admin_token");
-    history.replaceState(null,"",window.location.pathname+window.location.search);
+      history.replaceState(null,"",window.location.pathname+window.location.search);
     setAuthStage("login");
     $("email").value=$("passwordSetupEmail").value||"";
     $("password").value="";
@@ -1212,8 +1210,7 @@ async function api(action,method="GET",body=null,query={}){
   let value={};
   try{value=await response.json()}catch(_e){}
   if(response.status===401){
-    sessionStorage.removeItem("mz_ai_admin_token");
-    token="";
+      token="";
     setAuthStage("login");
     const error=new Error("身份验证失败或会话已失效");
     error.code="AUTH_REQUIRED";
@@ -1322,7 +1319,6 @@ async function verifyMfa(){
     if(!elevatedToken)throw new Error("MFA 验证成功但未返回安全会话");
 
     token=elevatedToken;
-    sessionStorage.setItem("mz_ai_admin_token",token);
     const status=await api("auth_status");
     if(status.aal!=="aal2")throw new Error("安全会话未提升到 aal2");
 
@@ -1443,8 +1439,7 @@ async function verifyBackupTotp(){
     const elevatedToken=verified?.access_token||verified?.session?.access_token||"";
     if(elevatedToken){
       token=elevatedToken;
-      sessionStorage.setItem("mz_ai_admin_token",token);
-    }
+      }
 
     backupTotpFactorId="";
     $("backupTotpPanel").classList.add("hidden");
@@ -1647,7 +1642,6 @@ async function signIn(){
     $("password").value="";
     if(!response.ok||!value.access_token)throw new Error("账号或密码验证失败");
     token=value.access_token;
-    sessionStorage.setItem("mz_ai_admin_token",token);
     await bootstrapAuthenticatedSession();
   }finally{
     button.disabled=false;
@@ -1688,7 +1682,6 @@ async function testProvider(mode){
 }
 
 function logout(){
-  sessionStorage.removeItem("mz_ai_admin_token");
   token="";
   opsAuthStatus=null;
   opsMemberships=[];

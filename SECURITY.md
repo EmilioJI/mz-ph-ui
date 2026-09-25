@@ -13,3 +13,14 @@ It must never contain:
 The public root is a neutral project page and does not load the operational console script. That reduces casual discoverability only; it is not a security boundary. Authentication and authorization are enforced server-side. Saved provider keys are stored only in the backend Vault and are never returned to this frontend.
 
 Copyright © 2026. All rights reserved. No license is granted for reuse, modification, or redistribution.
+
+
+## Public distribution boundary
+
+GitHub Pages is built from an explicit allowlist into `_site`. The repository root must never be deployed directly.
+
+Public update metadata may live only under `updates/`. APK binaries must never be committed to Git or Pages; they belong only in GitHub Release assets.
+
+The Operations Hub administrator bearer token is memory-only. It must not be persisted in `localStorage`, `sessionStorage`, IndexedDB, cookies, or static files. Reloading the page intentionally requires a new authenticated session/MFA flow.
+
+The Supabase project URL and `sb_publishable_*` browser key are public client configuration, not secrets. Service-role keys, provider API keys, private keys, runtime consumer raw tokens, user data, and private application source must never enter this repository.

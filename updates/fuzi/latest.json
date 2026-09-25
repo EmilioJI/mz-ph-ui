@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "product": "fuzi-partner",
+  "channel": "stable",
+  "latest_version_code": 2,
+  "latest_version_name": "0.2.0",
+  "download_url": null,
+  "apk_sha256": null,
+  "apk_size": null,
+  "signer_cert_sha256": "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC",
+  "release_notes": "当前稳定版本。",
+  "published_at": "2026-09-20T08:35:48Z"
+}
