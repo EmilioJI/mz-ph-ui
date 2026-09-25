@@ -14,6 +14,7 @@ let decisionKeyConfigured=false;
 let opsAuthStatus=null;
 let mfaFactorId="";
 let mfaMode="";
+let passwordSetupMode="";
 let backupTotpFactorId="";
 let opsMemberships=[];
 let selectedProjectKey=sessionStorage.getItem("mz_ops_project")||"mengzheng";
@@ -436,11 +437,94 @@ async function testDecision(){
 }
 
 function setAuthStage(stage){
-  const login=stage==="login",mfa=stage==="mfa",consoleOpen=stage==="console";
-  $("workspaceHero")?.classList.toggle("hidden",!login);
+  const login=stage==="login";
+  const passwordSetup=stage==="password_setup";
+  const mfa=stage==="mfa";
+  const consoleOpen=stage==="console";
+  $("workspaceHero")?.classList.toggle("hidden",!(login||passwordSetup));
   $("login").classList.toggle("hidden",!login);
+  $("passwordSetup").classList.toggle("hidden",!passwordSetup);
   $("mfa").classList.toggle("hidden",!mfa);
   $("console").classList.toggle("hidden",!consoleOpen);
+}
+
+function consumePasswordSetupCallback(){
+  const raw=window.location.hash||"";
+  if(!raw.startsWith("#"))return false;
+
+  const params=new URLSearchParams(raw.slice(1));
+  const type=String(params.get("type")||"").toLowerCase();
+  const accessToken=params.get("access_token")||"";
+  if(!accessToken||!(type==="invite"||type==="recovery"))return false;
+
+  passwordSetupMode=type;
+  token=accessToken;
+  sessionStorage.removeItem("mz_ai_admin_token");
+  return true;
+}
+
+async function preparePasswordSetup(){
+  setAuthStage("password_setup");
+  $("passwordSetupStatus").className="status top-gap";
+  $("passwordSetupStatus").textContent="正在验证邀请会话…";
+  $("newPassword").value="";
+  $("confirmPassword").value="";
+
+  try{
+    const user=await authApi("/auth/v1/user");
+    $("passwordSetupEmail").value=String(user?.email||"");
+    $("passwordSetupIntro").textContent=passwordSetupMode==="recovery"
+      ?"安全会话已验证。请设置新的管理员登录密码。"
+      :"邀请已验证。请设置这个独立管理员账号的登录密码。";
+    $("passwordSetupStatus").className="status top-gap ok";
+    $("passwordSetupStatus").textContent="邀请会话有效。密码不会保存在 Operations Hub。";
+    $("newPassword").focus();
+  }catch(error){
+    token="";
+    passwordSetupMode="";
+    history.replaceState(null,"",window.location.pathname+window.location.search);
+    setAuthStage("login");
+    alert("邀请会话已失效或无法验证，请重新发送邀请后再试。");
+  }
+}
+
+async function completePasswordSetup(){
+  const first=$("newPassword").value;
+  const second=$("confirmPassword").value;
+  if(first.length<12){
+    throw new Error("新密码至少需要 12 个字符。");
+  }
+  if(!/[A-Za-z]/.test(first)||!/\d/.test(first)){
+    throw new Error("新密码至少需要同时包含字母和数字。");
+  }
+  if(first!==second){
+    throw new Error("两次输入的密码不一致。");
+  }
+
+  const button=$("passwordSetupBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="正在设置…";
+  $("passwordSetupStatus").className="status top-gap";
+  $("passwordSetupStatus").textContent="正在安全提交新密码…";
+
+  try{
+    await authApi("/auth/v1/user","PUT",{password:first});
+    $("newPassword").value="";
+    $("confirmPassword").value="";
+    token="";
+    passwordSetupMode="";
+    sessionStorage.removeItem("mz_ai_admin_token");
+    history.replaceState(null,"",window.location.pathname+window.location.search);
+    setAuthStage("login");
+    $("email").value=$("passwordSetupEmail").value||"";
+    $("password").value="";
+    alert("密码已设置成功。下一步需要启用 Operations Hub Owner 权限，再用这个账号登录并绑定 Google Authenticator。");
+    $("password").focus();
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
 }
 
 function setAuthenticated(authenticated){
@@ -1572,6 +1656,7 @@ function logout(){
   opsMemberships=[];
   mfaFactorId="";
   mfaMode="";
+  passwordSetupMode="";
   backupTotpFactorId="";
   runtimeConsumerRawToken="";
   $("api_key").value="";
@@ -1606,6 +1691,16 @@ $("jev_enabled").addEventListener("change",refreshDecisionDraft);
 $("jev_api_key").addEventListener("input",refreshDecisionDraft);
 $("jev_model").addEventListener("input",refreshDecisionDraft);
 
+$("passwordSetupBtn").addEventListener("click",()=>completePasswordSetup().catch(error=>{
+  $("passwordSetupStatus").className="status top-gap bad";
+  $("passwordSetupStatus").textContent=error.message;
+}));
+$("confirmPassword").addEventListener("keydown",event=>{
+  if(event.key==="Enter")completePasswordSetup().catch(error=>{
+    $("passwordSetupStatus").className="status top-gap bad";
+    $("passwordSetupStatus").textContent=error.message;
+  });
+});
 $("loginBtn").addEventListener("click",()=>signIn().catch(error=>alert(error.message)));
 $("password").addEventListener("keydown",event=>{
   if(event.key==="Enter")signIn().catch(error=>alert(error.message));
@@ -1707,7 +1802,9 @@ $("backupTotpCopyBtn").addEventListener("click",async()=>{
 $("logoutBtn").addEventListener("click",logout);
 $("opsLogoutBtn").addEventListener("click",logout);
 
-if(token){
+if(consumePasswordSetupCallback()){
+  preparePasswordSetup();
+}else if(token){
   bootstrapAuthenticatedSession().catch(error=>{
     alert(error.message);
     logout();
