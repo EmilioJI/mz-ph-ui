@@ -242,9 +242,21 @@ jobs:
               '/auth/v1/resend',
               '/auth/v1/user',
               'history.replaceState',
+              '/challenge',
+              '/verify',
+              'renderMfaSecurity',
+              'removeSelectedMfa',
           ):
               if marker not in account_js:
                   raise SystemExit("ordinary account auth contract missing: " + marker)
+          for marker in (
+              'id="accountMfaFactor"',
+              'id="accountMfaCode"',
+              'id="accountMfaRemoveBtn"',
+              'id="accountMfaReloadBtn"',
+          ):
+              if marker not in account:
+                  raise SystemExit("ordinary account MFA self-service surface missing: " + marker)
           for forbidden_account_marker in (
               'p2-ai-provider-admin',
               'Operations Hub',
