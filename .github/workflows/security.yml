@@ -64,6 +64,7 @@ jobs:
               ".nojekyll",
               "README.md",
               "SECURITY.md",
+              "AGENTS.md",
               "index.html",
               "workspace.html",
               "account.html",
