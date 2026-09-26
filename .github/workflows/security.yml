@@ -622,7 +622,51 @@ jobs:
           if "mz_ai_admin_token" in app:
               raise SystemExit("admin bearer token must remain memory-only")
           if 'let token=""' not in app:
-              raise SystemExit("memory-only admin token contract missing")
+              raise SystemExit("memory-only admin access token contract missing")
+
+          # Admin refresh continuity is tab-scoped only. Access JWTs stay memory-only;
+          # the rotating refresh token may live in sessionStorage for at most 8 hours.
+          for marker in (
+              'const OPS_REFRESH_STORAGE_KEY="mz_ops_refresh_token"',
+              'const OPS_SESSION_STARTED_STORAGE_KEY="mz_ops_session_started_at"',
+              'const OPS_SESSION_MAX_AGE_MS=8*60*60*1000',
+              'grant_type=refresh_token',
+              'persistOperationsRefreshToken',
+              'refreshAccessTokenFromStoredSession',
+              'clearOperationsSessionStorage',
+              'sessionStorage.setItem(OPS_REFRESH_STORAGE_KEY,refreshToken)',
+              'sessionStorage.removeItem(OPS_REFRESH_STORAGE_KEY)',
+              '/auth/v1/logout',
+              'keepalive:true',
+          ):
+              if marker not in app:
+                  raise SystemExit("tab-scoped admin refresh contract missing: " + marker)
+
+          for forbidden_admin_persistence in (
+              'sessionStorage.setItem("access_token"',
+              'sessionStorage.setItem("token"',
+              'sessionStorage.setItem("mz_ai_admin_token"',
+              'sessionStorage.setItem("mz_ops_access',
+              'sessionStorage.setItem(OPS_REFRESH_STORAGE_KEY,token)',
+          ):
+              if forbidden_admin_persistence in app:
+                  raise SystemExit("admin access token persistence boundary violated: " + forbidden_admin_persistence)
+
+          pagehide_start = app.index('window.addEventListener("pagehide"')
+          pagehide_end = app.index('window.addEventListener("pageshow"', pagehide_start)
+          pagehide_block = app[pagehide_start:pagehide_end]
+          if "clearSensitiveBrowserState" not in pagehide_block:
+              raise SystemExit("pagehide must clear memory-only admin access state")
+          if "clearOperationsSessionStorage" in pagehide_block:
+              raise SystemExit("pagehide must preserve tab-scoped refresh continuity across reloads")
+
+          logout_start = app.index("function logout(){")
+          logout_end = app.index('document.querySelectorAll("[data-preset]")', logout_start)
+          logout_block = app[logout_start:logout_end]
+          for marker in ("clearOperationsSessionStorage()", '/auth/v1/logout'):
+              if marker not in logout_block:
+                  raise SystemExit("admin logout must revoke and clear tab session: " + marker)
+
           for marker in (
               "window.opener !== null",
               'window.addEventListener("pagehide"',
