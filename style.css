@@ -1623,3 +1623,69 @@ body.steward-focus-mode footer:not(.steward-footer){display:none}
 @media(prefers-reduced-motion:reduce){
   .steward-daily-card{animation:none!important}
 }
+
+
+/* Dev Steward pixel-match geometry contract v1 — Design Lab 1600x1100 */
+@media(min-width:1281px){
+  .steward-focus-header{
+    height:78px;
+    padding:0;
+    gap:0;
+  }
+  .steward-summary-grid{
+    height:104px;
+  }
+  .steward-summary-card{
+    height:104px;
+    min-height:104px;
+  }
+  .steward-status-banner{
+    height:99px;
+    min-height:99px;
+    border-radius:15px;
+  }
+  .steward-daily-title{
+    height:51px;
+    min-height:51px;
+    margin-bottom:10px!important;
+    gap:0;
+  }
+  .steward-daily-repo{
+    height:143px;
+    min-height:143px;
+    overflow:hidden;
+  }
+  .steward-daily-changes{
+    max-height:56px;
+    overflow:hidden;
+  }
+  .steward-primary-grid .steward-viz-card .section-title.compact{
+    height:37px;
+    min-height:37px;
+  }
+  .steward-radar-card .section-title.compact{margin-bottom:4px}
+  .steward-leaf-card .section-title.compact{margin-bottom:2px}
+  .steward-trend-card .section-title.compact{margin-bottom:5px}
+  .steward-radar-chart{
+    height:290px;
+    min-height:290px;
+  }
+  .steward-radar-chart svg{
+    height:290px;
+    max-height:290px;
+  }
+  .steward-leaf-chart{
+    height:292px;
+    min-height:292px;
+    padding-top:0;
+  }
+  .steward-leaf-chart svg{
+    height:292px;
+    max-height:292px;
+  }
+  .steward-trend-chart{
+    height:285px;
+    min-height:285px;
+    padding:0;
+  }
+}
