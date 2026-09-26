@@ -1094,3 +1094,326 @@ body.steward-focus-mode footer:not(.steward-footer){display:none}
   .steward-project-riskbar{grid-column:1/-1}
   .steward-radar-legend{grid-template-columns:1fr 1fr}
 }
+
+
+/* Dev Steward visual polish v3 */
+.steward-canvas{padding:24px 26px 38px}
+.steward-focus-header{padding-bottom:20px}
+.steward-focus-header h1{
+  font-size:31px;
+  letter-spacing:.01em;
+  line-height:1.14;
+}
+.steward-focus-header .eyebrow{
+  font-size:11px;
+  letter-spacing:.2em;
+}
+.steward-summary-grid,
+.steward-primary-grid,
+.steward-secondary-grid{gap:12px}
+.steward-summary-grid{margin-bottom:13px}
+.steward-summary-card{
+  padding:15px 16px;
+  border-radius:15px;
+}
+.steward-summary-card strong{font-size:22px}
+.steward-summary-card.recent strong{font-size:14px;line-height:1.35}
+.steward-status-banner{
+  margin:13px 0;
+  padding:17px 18px;
+}
+.steward-status-banner h2{font-size:19px}
+.steward-status-banner p{font-size:11.5px}
+
+.steward-primary-grid{
+  grid-template-columns:.94fr 1.12fr 1.18fr;
+}
+.steward-viz-card{
+  padding:16px;
+  border-radius:15px;
+}
+.steward-viz-card .section-title{margin-bottom:10px}
+.steward-viz-card .section-title h3{
+  font-size:15px;
+  letter-spacing:.015em;
+}
+.steward-viz-card .field-note{
+  font-size:9.5px;
+  line-height:1.55;
+}
+.steward-viz-meta{
+  padding:5px 9px;
+  font-size:9px;
+}
+.steward-primary-grid .steward-viz-card{min-height:400px}
+.steward-secondary-grid{margin-top:12px}
+.steward-secondary-grid .steward-viz-card{min-height:270px}
+.steward-detail-card{margin-top:12px;padding:16px}
+
+.steward-leaf-card{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 52% 43%,rgba(229,235,225,.5),transparent 46%),
+    rgba(255,255,252,.92);
+}
+.steward-leaf-card::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0 0;
+  height:90px;
+  pointer-events:none;
+  opacity:.32;
+  background:
+    radial-gradient(ellipse at 18% 100%,rgba(74,104,85,.11) 0 24%,transparent 25%),
+    radial-gradient(ellipse at 48% 100%,rgba(98,122,103,.09) 0 31%,transparent 32%),
+    radial-gradient(ellipse at 80% 100%,rgba(74,104,85,.09) 0 23%,transparent 24%);
+}
+.steward-leaf-card>*{position:relative;z-index:1}
+.steward-leaf-chart{
+  min-height:292px;
+  padding-top:2px;
+}
+.steward-leaf-chart svg{
+  width:100%;
+  max-height:304px;
+  overflow:visible;
+}
+.steward-maple-canvas{overflow:visible}
+.steward-leaf-stem{
+  stroke:#7d6749;
+  stroke-width:3.2;
+  opacity:.9;
+  stroke-dasharray:240;
+  stroke-dashoffset:240;
+  animation:stewardBranchDraw .75s ease forwards;
+}
+.steward-leaf-branch{
+  stroke:#9a825e;
+  stroke-width:1.6;
+  opacity:.74;
+  stroke-dasharray:180;
+  stroke-dashoffset:180;
+  animation:stewardBranchDraw .62s ease forwards;
+}
+.steward-leaf-branch.severity-p0{stroke:#aa6459}
+.steward-leaf-branch.severity-p1{stroke:#ae824b}
+.steward-leaf-branch.severity-p2{stroke:#718b73}
+
+.steward-maple-leaf{
+  cursor:pointer;
+  outline:none;
+  opacity:0;
+  animation:stewardLeafAppear .55s cubic-bezier(.2,.8,.2,1) forwards;
+}
+.steward-maple-shape{
+  stroke:rgba(255,253,248,.95);
+  stroke-width:2.2;
+  vector-effect:non-scaling-stroke;
+  filter:drop-shadow(0 4px 5px rgba(54,67,56,.12));
+  transition:filter .16s ease,stroke .16s ease,stroke-width .16s ease,opacity .16s ease;
+}
+.steward-maple-leaf.severity-p0 .steward-maple-shape{fill:url(#stewardLeafP0)}
+.steward-maple-leaf.severity-p1 .steward-maple-shape{fill:url(#stewardLeafP1)}
+.steward-maple-leaf.severity-p2 .steward-maple-shape{fill:url(#stewardLeafP2)}
+.steward-maple-vein{
+  fill:none;
+  stroke:rgba(255,255,255,.48);
+  stroke-width:1.15;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+.steward-maple-leaf:hover .steward-maple-shape,
+.steward-maple-leaf:focus .steward-maple-shape{
+  filter:brightness(1.04) drop-shadow(0 7px 7px rgba(51,68,57,.2));
+  stroke:#fff;
+  stroke-width:2.8;
+}
+.steward-maple-leaf.selected .steward-maple-shape{
+  filter:brightness(1.035) drop-shadow(0 9px 9px rgba(45,66,54,.22));
+  stroke:#244b3f;
+  stroke-width:3.1;
+}
+.steward-maple-label{
+  pointer-events:none;
+  opacity:0;
+  animation:stewardLeafLabelIn .36s ease .32s forwards;
+}
+.steward-maple-label.selected .steward-maple-rule{
+  font-weight:900;
+}
+.steward-maple-count{
+  fill:#fff;
+  font-family:"Noto Serif SC","Songti SC",serif;
+  font-size:16px;
+  font-weight:900;
+  text-shadow:0 1px 3px rgba(39,45,39,.26);
+}
+.steward-maple-rule{
+  fill:rgba(255,255,255,.96);
+  font-size:8.5px;
+  font-weight:800;
+  letter-spacing:.02em;
+  text-shadow:0 1px 2px rgba(39,45,39,.2);
+}
+.steward-maple-repo{
+  fill:#607268;
+  font-size:7.5px;
+  font-weight:760;
+  letter-spacing:.01em;
+}
+.steward-leaf-base{opacity:.8}
+.steward-leaf-base-dot{
+  fill:#9b473b;
+  stroke:#fffdfa;
+  stroke-width:2;
+}
+.steward-leaf-root-label{
+  fill:#829087;
+  font-size:8px;
+  letter-spacing:.08em;
+}
+.steward-leaf-more{
+  margin-top:1px;
+  color:#8f9a93;
+  font-size:8.5px;
+  text-align:center;
+}
+.steward-leaf-detail{
+  min-height:76px;
+  padding:9px 10px;
+  border:1px solid #e4e8e1;
+  border-left:3px solid #7b9b82;
+  border-radius:10px;
+  background:rgba(252,253,249,.9);
+  color:#66766d;
+  font-size:10px;
+}
+.steward-leaf-detail.severity-p0{border-left-color:#aa4c41;background:#fff8f6}
+.steward-leaf-detail.severity-p1{border-left-color:#c98a3f;background:#fffbf5}
+.steward-leaf-detail.severity-p2{border-left-color:#5f8c6b;background:#f8fcf8}
+.steward-leaf-detail-head strong{
+  color:#334b42;
+  font-size:11px;
+}
+.steward-leaf-detail p{
+  margin:4px 0 0;
+  line-height:1.45;
+}
+.steward-leaf-advice{
+  color:#53685d!important;
+}
+.steward-leaf-detail-links{
+  display:flex;
+  gap:10px;
+  margin-top:6px;
+}
+.steward-leaf-detail a{
+  margin-top:0;
+  color:#486b5b;
+  font-size:9px;
+}
+
+.steward-radar-shape{
+  animation:stewardShapeReveal .5s ease both;
+}
+.steward-line-series{
+  stroke-dasharray:900;
+  stroke-dashoffset:900;
+  animation:stewardLineDraw .9s ease .12s forwards;
+}
+.steward-line-dot{animation:stewardDotIn .28s ease .62s both}
+.steward-risk-donut{animation:stewardShapeReveal .55s ease both}
+.steward-summary-card,
+.steward-viz-card,
+.steward-detail-card{
+  animation:stewardCardRise .42s cubic-bezier(.2,.75,.2,1) both;
+}
+.steward-summary-card:nth-child(2){animation-delay:.035s}
+.steward-summary-card:nth-child(3){animation-delay:.07s}
+.steward-summary-card:nth-child(4){animation-delay:.105s}
+.steward-primary-grid .steward-viz-card:nth-child(1){animation-delay:.08s}
+.steward-primary-grid .steward-viz-card:nth-child(2){animation-delay:.12s}
+.steward-primary-grid .steward-viz-card:nth-child(3){animation-delay:.16s}
+.steward-secondary-grid .steward-viz-card:nth-child(1){animation-delay:.18s}
+.steward-secondary-grid .steward-viz-card:nth-child(2){animation-delay:.21s}
+.steward-secondary-grid .steward-viz-card:nth-child(3){animation-delay:.24s}
+
+@keyframes stewardBranchDraw{
+  to{stroke-dashoffset:0}
+}
+@keyframes stewardLeafAppear{
+  0%{opacity:0;filter:blur(1.5px)}
+  55%{opacity:.82}
+  100%{opacity:1;filter:none}
+}
+@keyframes stewardLeafLabelIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes stewardShapeReveal{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes stewardLineDraw{
+  to{stroke-dashoffset:0}
+}
+@keyframes stewardDotIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes stewardCardRise{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+@media(max-width:1280px){
+  .steward-primary-grid{grid-template-columns:1fr 1.08fr}
+  .steward-trend-card{grid-column:1/-1}
+  .steward-leaf-chart{min-height:300px}
+}
+@media(max-width:920px){
+  .steward-canvas{padding:17px 15px 30px}
+  .steward-focus-header h1{font-size:28px}
+  .steward-viz-card .section-title h3{font-size:15px}
+}
+@media(max-width:620px){
+  .steward-canvas{padding:13px 10px 25px}
+  .steward-focus-header h1{font-size:25px}
+  .steward-primary-grid .steward-viz-card{min-height:350px}
+  .steward-leaf-chart{min-height:270px}
+  .steward-leaf-chart svg{max-height:282px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .steward-summary-card,
+  .steward-viz-card,
+  .steward-detail-card,
+  .steward-maple-leaf,
+  .steward-maple-label,
+  .steward-leaf-stem,
+  .steward-leaf-branch,
+  .steward-radar-shape,
+  .steward-line-series,
+  .steward-line-dot,
+  .steward-risk-donut{
+    animation:none!important;
+    transition:none!important;
+    opacity:1!important;
+    stroke-dashoffset:0!important;
+  }
+}
+
+.steward-leaf-hub circle{
+  fill:#fffaf2;
+  stroke:#a54a3d;
+  stroke-width:1.6;
+  filter:drop-shadow(0 3px 4px rgba(82,65,48,.14));
+}
+.steward-leaf-hub text{
+  fill:#9c4338;
+  font-family:"Noto Serif SC","Songti SC",serif;
+  font-size:10px;
+  font-weight:900;
+}
