@@ -1786,6 +1786,23 @@ function renderStewardLeaf(findings){
   });
   svg.classList.add("steward-maple-canvas");
 
+  const defs=stewardSvg("defs");
+  const gradients=[
+    ["stewardLeafP0","#df6a55","#a63b31"],
+    ["stewardLeafP1","#e5aa54","#bd742e"],
+    ["stewardLeafP2","#7eae87","#4d7e5d"]
+  ];
+  gradients.forEach(([id,startColor,endColor])=>{
+    const gradient=stewardSvg("linearGradient",{
+      id,x1:"20%",y1:"0%",x2:"80%",y2:"100%"
+    });
+    gradient.appendChild(stewardSvg("stop",{offset:"0%","stop-color":startColor}));
+    gradient.appendChild(stewardSvg("stop",{offset:"58%","stop-color":startColor,"stop-opacity":".94"}));
+    gradient.appendChild(stewardSvg("stop",{offset:"100%","stop-color":endColor}));
+    defs.appendChild(gradient);
+  });
+  svg.appendChild(defs);
+
   const trunk=stewardSvg("path",{
     d:"M210 292 C206 254 214 211 210 164 C207 137 210 112 210 94",
     class:"steward-leaf-stem"
