@@ -177,9 +177,12 @@
         <div>
           <div class="eyebrow">Engineering Control Tower</div>
           <h2>Dev Steward 巡检台</h2>
-          <p class="muted">18 个开发仓库的只读工程巡检、风险趋势与证据汇总。数据仅在授权运维会话中读取。</p>
+          <p class="muted">把最近一次巡检结论、风险、证据和下一步动作集中在一页。数据仅在授权运维会话中读取。</p>
         </div>
-        <span id="stewardCoverageBadge" class="badge">等待数据</span>
+        <div class="steward-heading-badges">
+          <span id="stewardFreshnessBadge" class="badge steward-freshness">等待数据</span>
+          <span id="stewardCoverageBadge" class="badge">等待数据</span>
+        </div>
       </div>
 
       <div class="row steward-toolbar">
@@ -191,29 +194,62 @@
         <button id="stewardRefreshBtn" class="secondary" type="button">刷新巡检台</button>
       </div>
 
+      <section id="stewardOverview" class="steward-overview top-gap" aria-live="polite">
+        <div class="steward-overview-primary">
+          <div class="eyebrow">最近一次巡检</div>
+          <h3 id="stewardOverallTitle">等待巡检数据</h3>
+          <div id="stewardRunTime" class="steward-run-time">尚未生成快照</div>
+          <div id="stewardRunMeta" class="steward-run-meta"></div>
+        </div>
+        <div id="stewardOverallSummary" class="steward-overview-summary">
+          最近一次巡检完成后，这里会直接说明整体结果与覆盖情况。
+        </div>
+      </section>
+
+      <div id="stewardDeltaStrip" class="steward-delta-strip top-gap">
+        <span class="steward-delta-chip">暂无上一轮对比</span>
+      </div>
+
       <div id="stewardKpis" class="steward-kpi-grid top-gap">
-        <div class="steward-kpi"><span>项目 / Ref</span><strong id="stewardKpiTargets">-</strong><small>当前观察目标</small></div>
-        <div class="steward-kpi risk-p0"><span>P0</span><strong id="stewardKpiP0">-</strong><small>紧急问题</small></div>
-        <div class="steward-kpi risk-p1"><span>P1</span><strong id="stewardKpiP1">-</strong><small>重要问题</small></div>
-        <div class="steward-kpi risk-p2"><span>P2</span><strong id="stewardKpiP2">-</strong><small>观察项</small></div>
-        <div class="steward-kpi"><span>API Reads</span><strong id="stewardKpiReads">-</strong><small>最近一轮</small></div>
-        <div class="steward-kpi"><span>快照</span><strong id="stewardKpiSnapshots">-</strong><small id="stewardKpiAge">尚未同步</small></div>
+        <div class="steward-kpi"><span>观察目标</span><strong id="stewardKpiTargets">-</strong><small>repository / ref</small></div>
+        <div class="steward-kpi"><span>已观测</span><strong id="stewardKpiObserved">-</strong><small>其余为部分 / 未知</small></div>
+        <div class="steward-kpi risk-p0"><span>P0 · 紧急</span><strong id="stewardKpiP0">-</strong><small>需要立即处理</small></div>
+        <div class="steward-kpi risk-p1"><span>P1 · 重要</span><strong id="stewardKpiP1">-</strong><small>优先处理</small></div>
+        <div class="steward-kpi risk-p2"><span>P2 · 观察</span><strong id="stewardKpiP2">-</strong><small>跟踪或择机处理</small></div>
+        <div class="steward-kpi"><span>本轮告警</span><strong id="stewardKpiFindings">-</strong><small>原始 finding 数</small></div>
       </div>
 
       <div id="stewardDashboardStatus" class="status top-gap">尚未加载巡检数据</div>
 
+      <section class="steward-panel steward-actions-panel top-gap">
+        <div class="section-title compact">
+          <div>
+            <h3>下一步建议</h3>
+            <p class="field-note">基于本轮规则结果生成，不会自动修改业务仓库</p>
+          </div>
+        </div>
+        <div id="stewardRecommendations" class="steward-recommendations">尚未加载</div>
+      </section>
+
       <div class="steward-panel-grid top-gap">
         <section class="steward-panel">
           <div class="section-title compact">
-            <div><h3>风险趋势</h3><p class="field-note">P0 / P1 / P2 随巡检快照变化</p></div>
+            <div><h3>风险趋势</h3><p id="stewardTrendSummary" class="field-note">等待历史快照</p></div>
           </div>
           <div id="stewardTrendChart" class="steward-trend-chart" aria-label="巡检风险趋势"></div>
+          <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
           <div class="steward-legend"><span>P0</span><span>P1</span><span>P2</span></div>
         </section>
 
         <section class="steward-panel">
-          <div class="section-title compact">
-            <div><h3>当前问题</h3><p class="field-note">按严重度排序，证据链接跳转 GitHub</p></div>
+          <div class="section-title compact steward-findings-title">
+            <div><h3>本轮问题</h3><p class="field-note">相同仓库 / Ref / 规则会合并显示，减少重复噪声</p></div>
+          </div>
+          <div id="stewardFindingFilters" class="steward-finding-filters" aria-label="问题严重度筛选">
+            <button class="ghost steward-filter-btn active" type="button" data-steward-severity="ALL">全部</button>
+            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P0">P0</button>
+            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P1">P1</button>
+            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P2">P2</button>
           </div>
           <div id="stewardFindings" class="steward-findings">尚未加载</div>
         </section>
@@ -221,13 +257,13 @@
 
       <section class="steward-panel top-gap">
         <div class="section-title compact">
-          <div><h3>项目健康矩阵</h3><p class="field-note">按 repository / ref 查看覆盖与风险分布</p></div>
+          <div><h3>项目健康矩阵</h3><p class="field-note">高优先级问题与部分覆盖项优先显示；Commit 可直接跳转 GitHub</p></div>
         </div>
         <div id="stewardMatrix" class="steward-matrix">尚未加载</div>
       </section>
 
       <details class="steward-limitations top-gap">
-        <summary>证据边界与未覆盖能力</summary>
+        <summary id="stewardLimitationsSummary">证据边界与未覆盖能力</summary>
         <div id="stewardLimitations" class="audit-list top-gap">尚未加载</div>
       </details>
     </section>
