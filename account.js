@@ -56,7 +56,7 @@ function safeAuthError(value,fallback){
   if(code==="invalid_credentials")return "账号或密码错误。";
   if(code==="over_request_rate_limit"||code==="over_email_send_rate_limit")return "请求过于频繁，请稍后再试。";
   if(code==="weak_password")return "密码强度不足，请更换更强的密码。";
-  if(code==="same_password")return "?????????????????????";
+  if(code==="same_password")return "新密码不能与当前密码相同，请换一个新密码。";
   return fallback;
 }
 
@@ -382,8 +382,8 @@ async function consumeCallback(){
     setStatus(
       "loginStatus",
       errorCode==="otp_expired"
-        ?"???????????????????????????"
-        :"???????????????????",
+        ?"密码重置链接已被使用或已过期，请重新申请密码重置邮件。"
+        :"认证链接无效或已过期，请重新发起操作。",
       "bad"
     );
     return true;
