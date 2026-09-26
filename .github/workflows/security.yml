@@ -41,6 +41,7 @@ jobs:
           root = Path("index.html").read_text(encoding="utf-8")
           workspace = Path("workspace.html").read_text(encoding="utf-8")
           account = Path("account.html").read_text(encoding="utf-8")
+          entry_js = Path("entry.js").read_text(encoding="utf-8")
           account_js = Path("account.js").read_text(encoding="utf-8")
           app = Path("app.js").read_text(encoding="utf-8")
 
@@ -537,6 +538,13 @@ jobs:
               raise SystemExit("public root must not load operational app.js")
           if './entry.js' not in root:
               raise SystemExit("public root invite callback router missing")
+          for marker in (
+              'type==="recovery"',
+              'params.get("error_description")',
+              'window.location.replace("./account.html"+hash)',
+          ):
+              if marker not in entry_js:
+                  raise SystemExit("public root recovery callback routing missing: " + marker)
           if 'name="robots"' not in root or "noindex" not in root:
               raise SystemExit("public root noindex directive missing")
 
@@ -560,6 +568,10 @@ jobs:
               '/verify',
               'renderMfaSecurity',
               'removeSelectedMfa',
+              'code==="same_password"',
+              'errorCode==="otp_expired"',
+              '?????????????????????',
+              '???????????????????????????',
           ):
               if marker not in account_js:
                   raise SystemExit("ordinary account auth contract missing: " + marker)
