@@ -453,6 +453,7 @@ function setAuthStage(stage){
   const passwordSetup=stage==="password_setup";
   const mfa=stage==="mfa";
   const consoleOpen=stage==="console";
+  if(!consoleOpen)document.body.classList.remove("steward-focus-mode");
   $("workspaceHero")?.classList.toggle("hidden",!(login||passwordSetup));
   $("login").classList.toggle("hidden",!login);
   $("passwordSetup").classList.toggle("hidden",!passwordSetup);
@@ -2296,6 +2297,160 @@ function renderStewardMatrix(targets,findings){
   }
 }
 
+function renderStewardRiskDistribution(latest,findings){
+  const donut=$("stewardRiskDonut");
+  const legend=$("stewardRiskLegend");
+  const totalNode=$("stewardRiskTotal");
+  if(!donut||!legend||!totalNode)return;
+
+  const p0=stewardNumber(latest?.p0);
+  const p1=stewardNumber(latest?.p1);
+  const p2=stewardNumber(latest?.p2);
+  const total=Math.max(0,stewardNumber(latest?.findings_count??(Array.isArray(findings)?findings.length:0)));
+  totalNode.textContent=String(total);
+  legend.replaceChildren();
+
+  if(total<=0){
+    donut.style.background="conic-gradient(#d9d0c5 0 100%)";
+  }else{
+    const p0End=100*p0/total;
+    const p1End=p0End+100*p1/total;
+    donut.style.background=[
+      "conic-gradient(",
+      "#a94a3f 0 "+p0End.toFixed(2)+"%,",
+      "#c98a3f "+p0End.toFixed(2)+"% "+p1End.toFixed(2)+"%,",
+      "#5f8c6b "+p1End.toFixed(2)+"% 100%)"
+    ].join("");
+  }
+
+  const items=[
+    ["P0 · 紧急",p0,"p0"],
+    ["P1 · 重要",p1,"p1"],
+    ["P2 · 观察",p2,"p2"]
+  ];
+  for(const [label,value,tone] of items){
+    const row=document.createElement("div");
+    row.className="steward-risk-legend-row";
+    const mark=document.createElement("span");
+    mark.className="steward-risk-mark "+tone;
+    const name=document.createElement("span");
+    name.textContent=label;
+    const count=document.createElement("strong");
+    count.textContent=String(value);
+    const share=document.createElement("small");
+    share.textContent=total?Math.round(100*value/total)+"%":"0%";
+    row.append(mark,name,count,share);
+    legend.appendChild(row);
+  }
+}
+
+function renderStewardCoverageRing(latest,targets){
+  const ring=$("stewardCoverageRing");
+  const percentNode=$("stewardCoveragePercent");
+  if(!ring||!percentNode)return;
+  const targetRows=Array.isArray(targets)?targets:[];
+  const targetCount=Math.max(0,stewardNumber(latest?.targets_count??targetRows.length));
+  const observed=targetRows.filter(target=>
+    String(target?.state||"").toUpperCase()==="OBSERVED"
+  ).length;
+  const coverage=targetCount?stewardClampPercent(100*observed/targetCount):0;
+  ring.style.setProperty("--coverage",String(coverage));
+  percentNode.textContent=coverage+"%";
+}
+
+function renderStewardProjectOverview(targets,findings){
+  const root=$("stewardProjectOverview");
+  const meta=$("stewardProjectOverviewMeta");
+  if(!root||!meta)return;
+  root.replaceChildren();
+
+  const targetRows=Array.isArray(targets)?targets:[];
+  const findingRows=Array.isArray(findings)?findings:[];
+  if(!targetRows.length){
+    root.textContent="暂无项目快照。";
+    meta.textContent="暂无数据";
+    return;
+  }
+
+  const rows=targetRows.map(target=>{
+    const related=findingRows.filter(finding=>
+      finding?.repo===target?.repo&&finding?.ref===target?.ref
+    );
+    const counts={P0:0,P1:0,P2:0};
+    for(const item of related){
+      const severity=String(item?.severity||"");
+      if(Object.prototype.hasOwnProperty.call(counts,severity))counts[severity]+=1;
+    }
+    const total=counts.P0+counts.P1+counts.P2;
+    return {target,counts,total};
+  }).sort((a,b)=>
+    b.counts.P0-a.counts.P0
+    ||b.counts.P1-a.counts.P1
+    ||(String(a.target?.state||"").toUpperCase()==="PARTIAL"?-1:0)
+      -(String(b.target?.state||"").toUpperCase()==="PARTIAL"?-1:0)
+    ||b.counts.P2-a.counts.P2
+    ||String(a.target?.repo||"").localeCompare(String(b.target?.repo||""))
+  );
+
+  const affected=rows.filter(row=>row.total>0).length;
+  const partial=rows.filter(row=>String(row.target?.state||"").toUpperCase()==="PARTIAL").length;
+  meta.textContent=rows.length+" 个目标 · "+affected+" 个有问题"
+    +(partial?" · "+partial+" 个部分覆盖":"");
+
+  for(const rowData of rows.slice(0,8)){
+    const {target,counts,total}=rowData;
+    const row=document.createElement("div");
+    row.className="steward-project-row";
+
+    const nameWrap=document.createElement("div");
+    nameWrap.className="steward-project-name";
+    const name=document.createElement("strong");
+    name.textContent=stewardRepoShort(target?.repo);
+    const ref=document.createElement("span");
+    ref.textContent=String(target?.ref||"-");
+    nameWrap.append(name,ref);
+
+    const state=document.createElement("span");
+    const stateValue=String(target?.state||"UNKNOWN").toUpperCase();
+    state.className="steward-project-state "+stateValue.toLowerCase();
+    state.textContent=stewardCoverageLabel(stateValue);
+
+    const bar=document.createElement("div");
+    bar.className="steward-project-riskbar";
+    if(total<=0){
+      const clear=document.createElement("span");
+      clear.className="clear";
+      clear.style.width="100%";
+      bar.appendChild(clear);
+    }else{
+      const pieces=[
+        ["p0",counts.P0],
+        ["p1",counts.P1],
+        ["p2",counts.P2]
+      ];
+      for(const [tone,value] of pieces){
+        if(!value)continue;
+        const segment=document.createElement("span");
+        segment.className=tone;
+        segment.style.width=(100*value/total)+"%";
+        bar.appendChild(segment);
+      }
+    }
+
+    const risk=document.createElement("div");
+    risk.className="steward-project-risktext";
+    if(total){
+      risk.textContent="P0 "+counts.P0+" · P1 "+counts.P1+" · P2 "+counts.P2;
+    }else{
+      risk.textContent="本轮无 Finding";
+      risk.classList.add("clear");
+    }
+
+    row.append(nameWrap,state,bar,risk);
+    root.appendChild(row);
+  }
+}
+
 function renderStewardLimitations(values){
   const root=$("stewardLimitations");
   const summary=$("stewardLimitationsSummary");
@@ -2329,13 +2484,16 @@ function renderStewardDashboard(value){
     for(const id of ["stewardKpiObserved","stewardKpiP0","stewardKpiP1","stewardKpiP2"]){
       $(id).textContent="0";
     }
+    renderStewardCoverageRing(null,[]);
+    renderStewardRiskDistribution(null,[]);
+    renderStewardProjectOverview([],[]);
     $("stewardDashboardStatus").className="steward-inline-status top-gap";
     $("stewardDashboardStatus").textContent="等待下一次 Dev Steward 巡检写入。";
   }else{
     const coverage=String(latest.coverage||"UNKNOWN").toUpperCase();
     const observed=targets.filter(target=>String(target?.state||"").toUpperCase()==="OBSERVED").length;
-    badge.textContent="覆盖 · "+stewardCoverageLabel(coverage);
-    badge.className="badge steward-coverage "+coverage.toLowerCase();
+    badge.textContent=stewardCoverageLabel(coverage);
+    badge.className="steward-inline-badge steward-coverage "+coverage.toLowerCase();
     $("stewardKpiObserved").textContent=String(observed)+"/"+String(latest.targets_count??targets.length);
     $("stewardKpiP0").textContent=String(latest.p0??0);
     $("stewardKpiP1").textContent=String(latest.p1??0);
@@ -2344,6 +2502,9 @@ function renderStewardDashboard(value){
     $("stewardDashboardStatus").textContent="巡检快照读取成功。";
   }
 
+  renderStewardCoverageRing(latest,targets);
+  renderStewardRiskDistribution(latest,findings);
+  renderStewardProjectOverview(targets,findings);
   renderStewardRadar(latest,findings,targets);
   renderStewardLeaf(findings);
   renderStewardRecommendations(findings,targets);
@@ -2391,6 +2552,7 @@ function renderProjectSelection(){
 
   const isMengzheng=selectedProjectKey==="mengzheng";
   const isSteward=selectedProjectKey==="dev-steward";
+  document.body.classList.toggle("steward-focus-mode",isSteward);
   for(const id of ["mengzhengModelPresets","mengzhengAiEntitlements","mengzhengProviderConfig","mengzhengJevConfig"]){
     $(id).classList.toggle("hidden",!isMengzheng);
   }
@@ -3073,6 +3235,7 @@ window.addEventListener("pageshow",event=>{
 });
 
 function logout(){
+  document.body.classList.remove("steward-focus-mode");
   const accessToken=token;
   clearOperationsSessionStorage();
   clearSensitiveBrowserState();
@@ -3276,6 +3439,17 @@ initializeOperationsSession().catch(error=>{
   console.warn("Operations session restore failed:",error?.message||error);
 });
 
+
+$("stewardExitBtn").addEventListener("click",()=>{
+  const preferred=opsMemberships.find(item=>item?.project_key==="mengzheng")
+    ||opsMemberships.find(item=>item?.project_key!=="dev-steward");
+  if(!preferred)return;
+  selectedProjectKey=String(preferred.project_key||"");
+  applyProjectSelection().catch(error=>{
+    alert("返回项目运维失败："+error.message);
+  });
+});
+$("stewardLogoutBtn").addEventListener("click",logout);
 
 $("stewardRefreshBtn").addEventListener("click",()=>loadStewardDashboard(stewardDashboardDays).catch(error=>{
   $("stewardDashboardStatus").className="steward-inline-status top-gap bad";
