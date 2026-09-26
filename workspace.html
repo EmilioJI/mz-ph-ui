@@ -199,6 +199,7 @@
 
       <nav id="stewardNav" class="steward-subnav top-gap" aria-label="巡检台导航">
         <button class="steward-nav-btn active" type="button" data-steward-scroll="stewardOverview">总览</button>
+        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardVisuals">画像</button>
         <button class="steward-nav-btn" type="button" data-steward-scroll="stewardRecommendationsPanel">建议</button>
         <button class="steward-nav-btn" type="button" data-steward-scroll="stewardFindingsPanel">问题</button>
         <button class="steward-nav-btn" type="button" data-steward-scroll="stewardTrendPanel">趋势</button>
@@ -229,6 +230,32 @@
       </div>
 
       <div id="stewardDashboardStatus" class="steward-inline-status top-gap">尚未加载巡检数据</div>
+
+      <section id="stewardVisuals" class="steward-visual-grid top-gap">
+        <article class="steward-viz-card steward-radar-card">
+          <div class="section-title compact">
+            <div>
+              <h3>六维巡检画像</h3>
+              <p class="field-note">直接由当前快照计算；不是综合评分，也不引入主观权重</p>
+            </div>
+            <span id="stewardRadarMeta" class="steward-viz-meta">等待数据</span>
+          </div>
+          <div id="stewardRadarChart" class="steward-radar-chart" aria-label="六维巡检画像雷达图"></div>
+          <div id="stewardRadarLegend" class="steward-radar-legend"></div>
+        </article>
+
+        <article class="steward-viz-card steward-leaf-card">
+          <div class="section-title compact">
+            <div>
+              <h3>问题枫叶图</h3>
+              <p class="field-note">一片叶子 = 一个合并问题组；颜色看严重度，大小看重复次数</p>
+            </div>
+            <span id="stewardLeafMeta" class="steward-viz-meta">等待数据</span>
+          </div>
+          <div id="stewardLeafChart" class="steward-leaf-chart" aria-label="问题枫叶分布图"></div>
+          <div id="stewardLeafDetail" class="steward-leaf-detail">悬停或点击叶片查看仓库、规则与证据。</div>
+        </article>
+      </section>
 
       <section id="stewardRecommendationsPanel" class="steward-panel steward-actions-panel top-gap">
         <div class="section-title compact">
@@ -267,7 +294,7 @@
           <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
           <div class="steward-trend-footer">
             <span id="stewardTrendSummary" class="field-note">等待历史快照</span>
-            <div class="steward-legend"><span>P0</span><span>P1</span><span>P2</span></div>
+            <div class="steward-legend steward-line-legend"><span class="total">总问题</span><span class="high">P0+P1</span><span class="p2">P2</span></div>
           </div>
         </div>
       </details>
