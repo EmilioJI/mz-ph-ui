@@ -1676,17 +1676,29 @@ function renderStewardRadar(latest,findings,targets){
 
 function stewardLeafPath(){
   return [
-    "M 0 -58",
-    "C -4 -48 -9 -39 -13 -30",
-    "L -29 -43","L -24 -25","L -46 -30",
-    "L -35 -12","L -59 -6","L -40 7",
-    "L -52 22","L -27 17","L -22 42",
-    "L -7 24","L 0 55",
-    "L 7 24","L 22 42","L 27 17",
-    "L 52 22","L 40 7","L 59 -6",
-    "L 35 -12","L 46 -30","L 24 -25",
-    "L 29 -43","L 13 -30",
-    "C 9 -39 4 -48 0 -58",
+    "M 0 -60",
+    "C -4 -48 -8 -40 -13 -30",
+    "C -18 -33 -24 -39 -33 -48",
+    "C -31 -37 -29 -29 -27 -23",
+    "C -35 -25 -44 -30 -55 -35",
+    "C -50 -24 -46 -16 -41 -9",
+    "C -49 -9 -58 -7 -68 -3",
+    "C -58 6 -49 12 -41 15",
+    "C -47 22 -51 30 -55 39",
+    "C -43 34 -33 29 -25 24",
+    "C -24 34 -21 44 -17 55",
+    "C -10 45 -5 37 0 28",
+    "C 5 37 10 45 17 55",
+    "C 21 44 24 34 25 24",
+    "C 33 29 43 34 55 39",
+    "C 51 30 47 22 41 15",
+    "C 49 12 58 6 68 -3",
+    "C 58 -7 49 -9 41 -9",
+    "C 46 -16 50 -24 55 -35",
+    "C 44 -30 35 -25 27 -23",
+    "C 29 -29 31 -37 33 -48",
+    "C 24 -39 18 -33 13 -30",
+    "C 8 -40 4 -48 0 -60",
     "Z"
   ].join(" ");
 }
@@ -1757,9 +1769,9 @@ function renderStewardLeaf(findings){
 
   const raw=Array.isArray(findings)?findings:[];
   const groups=stewardGroupFindings(raw);
-  meta.textContent=groups.length+" 组 · "+raw.length+" 条 Finding";
 
   if(!groups.length){
+    meta.textContent="0 组";
     renderStewardLeafDetail(null);
     const empty=document.createElement("div");
     empty.className="steward-empty-state";
@@ -1768,15 +1780,19 @@ function renderStewardLeaf(findings){
     return;
   }
 
-  const visible=groups.slice(0,7);
+  const visible=groups.slice(0,6);
+  meta.textContent=groups.length<=6
+    ?groups.length+" 组 · "+raw.length+" 条 Finding"
+    :"主图 6 组 · 总 "+groups.length+" 组";
+
+  const center={x:210,y:154};
   const positions=[
-    {x:210,y:70,rotation:0,base:1.02,branchY:124},
-    {x:137,y:103,rotation:-28,base:.88,branchY:151},
-    {x:283,y:103,rotation:28,base:.88,branchY:151},
-    {x:91,y:163,rotation:-50,base:.78,branchY:205},
-    {x:329,y:163,rotation:50,base:.78,branchY:205},
-    {x:147,y:208,rotation:-24,base:.8,branchY:240},
-    {x:273,y:208,rotation:24,base:.8,branchY:240}
+    {x:210,y:70,rotation:0,base:.87},
+    {x:140,y:104,rotation:-52,base:.74},
+    {x:280,y:104,rotation:52,base:.74},
+    {x:132,y:183,rotation:-112,base:.72},
+    {x:288,y:183,rotation:112,base:.72},
+    {x:210,y:228,rotation:180,base:.76}
   ];
 
   const svg=stewardSvg("svg",{
@@ -1803,30 +1819,35 @@ function renderStewardLeaf(findings){
   });
   svg.appendChild(defs);
 
-  const trunk=stewardSvg("path",{
-    d:"M210 292 C206 254 214 211 210 164 C207 137 210 112 210 94",
-    class:"steward-leaf-stem"
-  });
-  svg.appendChild(trunk);
-
   positions.slice(0,visible.length).forEach((position,index)=>{
     const group=visible[index];
+    const midX=(center.x+position.x)/2;
+    const midY=(center.y+position.y)/2;
+    const bend=index===0||index===5?0:(position.x<center.x?-8:8);
     const branch=stewardSvg("path",{
-      d:"M210 "+position.branchY
-        +" Q "+((210+position.x)/2).toFixed(1)+" "+(position.branchY-18)
-        +" "+position.x+" "+(position.y+30),
+      d:"M"+center.x+" "+center.y
+        +" Q "+(midX+bend).toFixed(1)+" "+(midY-4).toFixed(1)
+        +" "+position.x+" "+position.y,
       class:"steward-leaf-branch severity-"+group.severity.toLowerCase()
     });
-    branch.style.animationDelay=(70+index*55)+"ms";
+    branch.style.animationDelay=(60+index*55)+"ms";
     svg.appendChild(branch);
   });
+
+  const hub=stewardSvg("g",{class:"steward-leaf-hub"});
+  hub.appendChild(stewardSvg("circle",{cx:center.x,cy:center.y,r:10}));
+  hub.appendChild(stewardSvg("text",{
+    x:center.x,y:center.y+1,
+    "text-anchor":"middle","dominant-baseline":"middle"
+  },"检"));
+  svg.appendChild(hub);
 
   let selectedLeaf=null;
   let selectedLabel=null;
 
   visible.forEach((group,index)=>{
     const position=positions[index];
-    const extra=Math.min(.16,Math.max(0,group.count-1)*.055);
+    const extra=Math.min(.12,Math.max(0,group.count-1)*.045);
     const scale=position.base+extra;
     const leaf=stewardSvg("g",{
       transform:"translate("+position.x+" "+position.y+") rotate("+position.rotation+") scale("+scale+")",
@@ -1835,13 +1856,11 @@ function renderStewardLeaf(findings){
       role:"button",
       "aria-label":group.severity+" "+stewardRepoShort(group.repo)+" "+stewardRuleLabel(group.rule)+" "+group.count+" 条"
     });
-    leaf.style.animationDelay=(120+index*70)+"ms";
+    leaf.style.animationDelay=(110+index*75)+"ms";
 
-    const shape=stewardSvg("path",{d:stewardLeafPath(),class:"steward-maple-shape"});
-    leaf.appendChild(shape);
-
+    leaf.appendChild(stewardSvg("path",{d:stewardLeafPath(),class:"steward-maple-shape"}));
     leaf.appendChild(stewardSvg("path",{
-      d:"M0 43 L0 -38 M0 2 L-29 -15 M0 7 L29 -15 M0 14 L-23 27 M0 14 L23 27",
+      d:"M0 44 L0 -39 M0 3 L-29 -15 M0 7 L29 -15 M0 15 L-23 28 M0 15 L23 28",
       class:"steward-maple-vein"
     }));
     leaf.appendChild(stewardSvg("title",{},
@@ -1853,7 +1872,7 @@ function renderStewardLeaf(findings){
       "aria-hidden":"true"
     });
     label.appendChild(stewardSvg("text",{
-      x:position.x,y:position.y-4,
+      x:position.x,y:position.y-5,
       class:"steward-maple-count",
       "text-anchor":"middle","dominant-baseline":"middle"
     },String(group.count)));
@@ -1862,11 +1881,6 @@ function renderStewardLeaf(findings){
       class:"steward-maple-rule",
       "text-anchor":"middle","dominant-baseline":"middle"
     },stewardLeafRuleShort(group.rule)));
-    label.appendChild(stewardSvg("text",{
-      x:position.x,y:position.y+52,
-      class:"steward-maple-repo",
-      "text-anchor":"middle","dominant-baseline":"middle"
-    },stewardLeafRepoShort(group.repo)));
 
     const activate=({persist=false}={})=>{
       renderStewardLeafDetail(group);
@@ -1900,19 +1914,19 @@ function renderStewardLeaf(findings){
     }
   });
 
-  const base=stewardSvg("g",{class:"steward-leaf-base"});
-  base.appendChild(stewardSvg("circle",{cx:210,cy:286,r:5,class:"steward-leaf-base-dot"}));
-  base.appendChild(stewardSvg("text",{
-    x:210,y:303,class:"steward-leaf-root-label","text-anchor":"middle"
-  },"本轮问题脉络"));
-  svg.appendChild(base);
+  const caption=stewardSvg("text",{
+    x:center.x,y:296,
+    class:"steward-leaf-root-label",
+    "text-anchor":"middle"
+  },"点击主叶查看对应仓库与证据");
+  svg.appendChild(caption);
 
   root.appendChild(svg);
 
   if(groups.length>visible.length){
     const more=document.createElement("div");
     more.className="steward-leaf-more";
-    more.textContent="主图展示最高优先的 "+visible.length+" 组；另有 "
+    more.textContent="主图展示最高优先的 6 组；另有 "
       +(groups.length-visible.length)+" 组可在“问题详情”查看。";
     root.appendChild(more);
   }
