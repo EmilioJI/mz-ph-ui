@@ -1676,24 +1676,46 @@ function renderStewardRadar(latest,findings,targets){
 
 function stewardLeafPath(){
   return [
-    "M 0 -38",
-    "L 8 -21","L 19 -30","L 17 -14",
-    "L 35 -19","L 25 -5","L 41 -2",
-    "L 24 7","L 31 21","L 11 15",
-    "L 8 36","L 0 25","L -8 36","L -11 15",
-    "L -31 21","L -24 7","L -41 -2",
-    "L -25 -5","L -35 -19","L -17 -14",
-    "L -19 -30","L -8 -21","Z"
+    "M 0 -58",
+    "C -4 -48 -9 -39 -13 -30",
+    "L -29 -43","L -24 -25","L -46 -30",
+    "L -35 -12","L -59 -6","L -40 7",
+    "L -52 22","L -27 17","L -22 42",
+    "L -7 24","L 0 55",
+    "L 7 24","L 22 42","L 27 17",
+    "L 52 22","L 40 7","L 59 -6",
+    "L 35 -12","L 46 -30","L 24 -25",
+    "L 29 -43","L 13 -30",
+    "C 9 -39 4 -48 0 -58",
+    "Z"
   ].join(" ");
+}
+
+function stewardLeafRuleShort(value){
+  const labels={
+    CI_FAILURE:"CI 失败",
+    COVERAGE_GAP:"覆盖不足",
+    INSTRUCTION_CONFLICT_CANDIDATE:"指令冲突"
+  };
+  return labels[String(value||"")]||"巡检问题";
+}
+
+function stewardLeafRepoShort(value){
+  const name=stewardRepoShort(value);
+  if(name.length<=15)return name;
+  return name.slice(0,13)+"…";
 }
 
 function renderStewardLeafDetail(group){
   const root=$("stewardLeafDetail");
   root.replaceChildren();
+  root.className="steward-leaf-detail";
   if(!group){
-    root.textContent="悬停或点击叶片查看仓库、规则与证据。";
+    root.textContent="点击叶片查看对应仓库、Ref、建议与证据。";
     return;
   }
+
+  root.classList.add("severity-"+String(group.severity||"P2").toLowerCase());
 
   const top=document.createElement("div");
   top.className="steward-leaf-detail-head";
@@ -1708,13 +1730,23 @@ function renderStewardLeafDetail(group){
   body.textContent=group.ref+" · 合并 "+group.count+" 条 Finding · "+stewardHumanMessage(group.first);
   root.append(top,body);
 
+  const advice=document.createElement("p");
+  advice.className="steward-leaf-advice";
+  advice.textContent="建议："+stewardRecommendationForFinding(group.first,group.count);
+  root.appendChild(advice);
+
   if(group.evidence.length){
-    const link=document.createElement("a");
-    link.href=group.evidence[0];
-    link.target="_blank";
-    link.rel="noopener noreferrer";
-    link.textContent="查看首条证据";
-    root.appendChild(link);
+    const links=document.createElement("div");
+    links.className="steward-leaf-detail-links";
+    group.evidence.slice(0,2).forEach((url,index)=>{
+      const link=document.createElement("a");
+      link.href=url;
+      link.target="_blank";
+      link.rel="noopener noreferrer";
+      link.textContent=index===0?"查看证据":"更多证据";
+      links.appendChild(link);
+    });
+    root.appendChild(links);
   }
 }
 
@@ -1726,9 +1758,9 @@ function renderStewardLeaf(findings){
   const raw=Array.isArray(findings)?findings:[];
   const groups=stewardGroupFindings(raw);
   meta.textContent=groups.length+" 组 · "+raw.length+" 条 Finding";
-  renderStewardLeafDetail(null);
 
   if(!groups.length){
+    renderStewardLeafDetail(null);
     const empty=document.createElement("div");
     empty.className="steward-empty-state";
     empty.textContent="当前没有问题组。";
@@ -1736,70 +1768,135 @@ function renderStewardLeaf(findings){
     return;
   }
 
-  const visible=groups.slice(0,12);
+  const visible=groups.slice(0,7);
   const positions=[
-    [180,62,0],[120,89,-24],[240,89,24],
-    [82,132,-42],[278,132,42],[132,145,-12],[228,145,12],
-    [66,190,-55],[294,190,55],[122,208,-25],[238,208,25],[180,229,0]
+    {x:210,y:70,rotation:0,base:1.02,branchY:124},
+    {x:137,y:103,rotation:-28,base:.88,branchY:151},
+    {x:283,y:103,rotation:28,base:.88,branchY:151},
+    {x:91,y:163,rotation:-50,base:.78,branchY:205},
+    {x:329,y:163,rotation:50,base:.78,branchY:205},
+    {x:147,y:208,rotation:-24,base:.8,branchY:240},
+    {x:273,y:208,rotation:24,base:.8,branchY:240}
   ];
-  const svg=stewardSvg("svg",{
-    viewBox:"0 0 360 300",
-    role:"img",
-    "aria-label":"问题枫叶图"
-  });
 
-  svg.appendChild(stewardSvg("path",{
-    d:"M180 286 C176 239 184 185 180 101",
+  const svg=stewardSvg("svg",{
+    viewBox:"0 0 420 306",
+    role:"img",
+    "aria-label":"问题枫叶分布图"
+  });
+  svg.classList.add("steward-maple-canvas");
+
+  const trunk=stewardSvg("path",{
+    d:"M210 292 C206 254 214 211 210 164 C207 137 210 112 210 94",
     class:"steward-leaf-stem"
-  }));
+  });
+  svg.appendChild(trunk);
 
   positions.slice(0,visible.length).forEach((position,index)=>{
-    const [x,y]=position;
-    const branchY=Math.max(108,Math.min(252,y+42));
-    svg.appendChild(stewardSvg("path",{
-      d:"M180 "+branchY+" Q "+((180+x)/2)+" "+(branchY-12)+" "+x+" "+(y+8),
-      class:"steward-leaf-branch"
-    }));
+    const group=visible[index];
+    const branch=stewardSvg("path",{
+      d:"M210 "+position.branchY
+        +" Q "+((210+position.x)/2).toFixed(1)+" "+(position.branchY-18)
+        +" "+position.x+" "+(position.y+30),
+      class:"steward-leaf-branch severity-"+group.severity.toLowerCase()
+    });
+    branch.style.animationDelay=(70+index*55)+"ms";
+    svg.appendChild(branch);
   });
 
+  let selectedLeaf=null;
+  let selectedLabel=null;
+
   visible.forEach((group,index)=>{
-    const [x,y,rotation]=positions[index];
-    const scale=0.56+Math.min(0.42,Math.max(0,group.count-1)*0.11);
+    const position=positions[index];
+    const extra=Math.min(.16,Math.max(0,group.count-1)*.055);
+    const scale=position.base+extra;
     const leaf=stewardSvg("g",{
-      transform:"translate("+x+" "+y+") rotate("+rotation+") scale("+scale+")",
+      transform:"translate("+position.x+" "+position.y+") rotate("+position.rotation+") scale("+scale+")",
       class:"steward-maple-leaf severity-"+group.severity.toLowerCase(),
       tabindex:"0",
       role:"button",
       "aria-label":group.severity+" "+stewardRepoShort(group.repo)+" "+stewardRuleLabel(group.rule)+" "+group.count+" 条"
     });
-    leaf.appendChild(stewardSvg("path",{d:stewardLeafPath(),class:"steward-maple-shape"}));
-    leaf.appendChild(stewardSvg("line",{x1:0,y1:22,x2:0,y2:48,class:"steward-maple-vein"}));
+    leaf.style.animationDelay=(120+index*70)+"ms";
+
+    const shape=stewardSvg("path",{d:stewardLeafPath(),class:"steward-maple-shape"});
+    leaf.appendChild(shape);
+
+    leaf.appendChild(stewardSvg("path",{
+      d:"M0 43 L0 -38 M0 2 L-29 -15 M0 7 L29 -15 M0 14 L-23 27 M0 14 L23 27",
+      class:"steward-maple-vein"
+    }));
     leaf.appendChild(stewardSvg("title",{},
       group.severity+" · "+group.repo+" / "+group.ref+" · "+stewardRuleLabel(group.rule)+" ×"+group.count
     ));
-    const activate=()=>renderStewardLeafDetail(group);
-    leaf.addEventListener("mouseenter",activate);
-    leaf.addEventListener("focus",activate);
-    leaf.addEventListener("click",activate);
-    svg.appendChild(leaf);
 
-    const count=stewardSvg("text",{
-      x:x,y:y+4,class:"steward-maple-count",
+    const label=stewardSvg("g",{
+      class:"steward-maple-label severity-"+group.severity.toLowerCase(),
+      "aria-hidden":"true"
+    });
+    label.appendChild(stewardSvg("text",{
+      x:position.x,y:position.y-4,
+      class:"steward-maple-count",
       "text-anchor":"middle","dominant-baseline":"middle"
-    },String(group.count));
-    svg.appendChild(count);
+    },String(group.count)));
+    label.appendChild(stewardSvg("text",{
+      x:position.x,y:position.y+13,
+      class:"steward-maple-rule",
+      "text-anchor":"middle","dominant-baseline":"middle"
+    },stewardLeafRuleShort(group.rule)));
+    label.appendChild(stewardSvg("text",{
+      x:position.x,y:position.y+52,
+      class:"steward-maple-repo",
+      "text-anchor":"middle","dominant-baseline":"middle"
+    },stewardLeafRepoShort(group.repo)));
+
+    const activate=({persist=false}={})=>{
+      renderStewardLeafDetail(group);
+      if(persist){
+        if(selectedLeaf)selectedLeaf.classList.remove("selected");
+        if(selectedLabel)selectedLabel.classList.remove("selected");
+        leaf.classList.add("selected");
+        label.classList.add("selected");
+        selectedLeaf=leaf;
+        selectedLabel=label;
+      }
+    };
+    leaf.addEventListener("mouseenter",()=>activate());
+    leaf.addEventListener("focus",()=>activate());
+    leaf.addEventListener("click",()=>activate({persist:true}));
+    leaf.addEventListener("keydown",event=>{
+      if(event.key==="Enter"||event.key===" "){
+        event.preventDefault();
+        activate({persist:true});
+      }
+    });
+
+    svg.append(leaf,label);
+
+    if(index===0){
+      leaf.classList.add("selected");
+      label.classList.add("selected");
+      selectedLeaf=leaf;
+      selectedLabel=label;
+      renderStewardLeafDetail(group);
+    }
   });
 
-  svg.appendChild(stewardSvg("text",{
-    x:180,y:282,class:"steward-leaf-root-label","text-anchor":"middle"
-  },"本轮问题组"));
+  const base=stewardSvg("g",{class:"steward-leaf-base"});
+  base.appendChild(stewardSvg("circle",{cx:210,cy:286,r:5,class:"steward-leaf-base-dot"}));
+  base.appendChild(stewardSvg("text",{
+    x:210,y:303,class:"steward-leaf-root-label","text-anchor":"middle"
+  },"本轮问题脉络"));
+  svg.appendChild(base);
 
   root.appendChild(svg);
 
   if(groups.length>visible.length){
     const more=document.createElement("div");
     more.className="steward-leaf-more";
-    more.textContent="图中优先显示前 "+visible.length+" 组；另有 "+(groups.length-visible.length)+" 组可在“本轮问题”查看。";
+    more.textContent="主图展示最高优先的 "+visible.length+" 组；另有 "
+      +(groups.length-visible.length)+" 组可在“问题详情”查看。";
     root.appendChild(more);
   }
 }
