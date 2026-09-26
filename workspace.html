@@ -172,149 +172,221 @@
       </div>
     </section>
 
-    <section id="stewardDashboard" class="card steward-dashboard hidden">
-      <div class="section-title steward-dashboard-title">
-        <div class="steward-title-lockup">
-          <span class="steward-seal" aria-hidden="true">巡</span>
-          <div>
-            <div class="eyebrow">工程巡检 · 运维总览</div>
-            <h2>Dev Steward 巡检台</h2>
-            <p class="muted">先看结论，再看动作；需要时再展开证据与仓库明细。</p>
+    <section id="stewardDashboard" class="steward-focus hidden">
+      <div class="steward-focus-shell">
+        <aside class="steward-side">
+          <div class="steward-side-brand">
+            <div class="steward-side-title">巡检台 <span class="steward-side-seal">巡</span></div>
+            <div>开发项目健康巡检总览</div>
           </div>
-        </div>
-        <div class="steward-heading-badges">
-          <span id="stewardFreshnessBadge" class="badge steward-freshness">等待数据</span>
-          <span id="stewardCoverageBadge" class="badge">等待数据</span>
-        </div>
-      </div>
 
-      <div class="row steward-toolbar">
-        <div class="steward-range" id="stewardRange">
-          <button class="ghost steward-range-btn" type="button" data-steward-days="7">7 天</button>
-          <button class="ghost steward-range-btn active" type="button" data-steward-days="30">30 天</button>
-          <button class="ghost steward-range-btn" type="button" data-steward-days="90">90 天</button>
-        </div>
-        <button id="stewardRefreshBtn" class="secondary" type="button">刷新</button>
-      </div>
+          <nav id="stewardNav" class="steward-side-nav" aria-label="巡检台导航">
+            <button class="steward-side-nav-btn active" type="button" data-steward-scroll="stewardOverview">总览</button>
+            <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardVisuals">巡检画像</button>
+            <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardProjectPanel">项目状态</button>
+            <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardRecommendationsPanel">下一步动作</button>
+            <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardFindingsPanel">问题详情</button>
+          </nav>
 
-      <nav id="stewardNav" class="steward-subnav top-gap" aria-label="巡检台导航">
-        <button class="steward-nav-btn active" type="button" data-steward-scroll="stewardOverview">总览</button>
-        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardVisuals">画像</button>
-        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardRecommendationsPanel">建议</button>
-        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardFindingsPanel">问题</button>
-        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardTrendPanel">趋势</button>
-        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardMatrixPanel">仓库</button>
-      </nav>
+          <div class="steward-side-motto">
+            <strong>山河有序 · 系统常安</strong>
+            <span>巡于细微 · 检见真章</span>
+          </div>
 
-      <section id="stewardOverview" class="steward-overview top-gap" aria-live="polite">
-        <div class="steward-overview-primary">
-          <div class="eyebrow">最近一次巡检</div>
-          <h3 id="stewardOverallTitle">等待巡检数据</h3>
-          <div id="stewardRunTime" class="steward-run-time">尚未生成快照</div>
-          <div id="stewardRunMeta" class="steward-run-meta"></div>
-        </div>
-        <div id="stewardOverallSummary" class="steward-overview-summary">
-          最近一次巡检完成后，这里会直接说明整体结果与覆盖情况。
-        </div>
-      </section>
+          <div class="steward-side-actions">
+            <button id="stewardExitBtn" class="ghost steward-side-exit" type="button">返回项目运维</button>
+            <button id="stewardLogoutBtn" class="ghost steward-side-exit" type="button">退出登录</button>
+          </div>
+        </aside>
 
-      <div id="stewardDeltaStrip" class="steward-delta-strip top-gap">
-        <span class="steward-delta-chip">暂无上一轮对比</span>
-      </div>
-
-      <div id="stewardKpis" class="steward-kpi-grid steward-kpi-grid-compact top-gap">
-        <div class="steward-kpi"><span>覆盖</span><strong id="stewardKpiObserved">-</strong><small>已观测 / 总目标</small></div>
-        <div class="steward-kpi risk-p0"><span>P0 · 紧急</span><strong id="stewardKpiP0">-</strong><small>立即处理</small></div>
-        <div class="steward-kpi risk-p1"><span>P1 · 重要</span><strong id="stewardKpiP1">-</strong><small>优先处理</small></div>
-        <div class="steward-kpi risk-p2"><span>P2 · 观察</span><strong id="stewardKpiP2">-</strong><small>持续跟踪</small></div>
-      </div>
-
-      <div id="stewardDashboardStatus" class="steward-inline-status top-gap">尚未加载巡检数据</div>
-
-      <section id="stewardVisuals" class="steward-visual-grid top-gap">
-        <article class="steward-viz-card steward-radar-card">
-          <div class="section-title compact">
+        <div class="steward-canvas">
+          <header class="steward-focus-header">
             <div>
-              <h3>六维巡检画像</h3>
-              <p class="field-note">直接由当前快照计算；不是综合评分，也不引入主观权重</p>
+              <div class="eyebrow">代码如山川 · 巡检见真章</div>
+              <h1>Dev Steward 巡检台</h1>
+              <p>让每一个项目，都更健康地向前。</p>
             </div>
-            <span id="stewardRadarMeta" class="steward-viz-meta">等待数据</span>
-          </div>
-          <div id="stewardRadarChart" class="steward-radar-chart" aria-label="六维巡检画像雷达图"></div>
-          <div id="stewardRadarLegend" class="steward-radar-legend"></div>
-        </article>
+            <div class="steward-header-controls">
+              <div class="steward-range" id="stewardRange">
+                <button class="ghost steward-range-btn" type="button" data-steward-days="7">7 天</button>
+                <button class="ghost steward-range-btn active" type="button" data-steward-days="30">30 天</button>
+                <button class="ghost steward-range-btn" type="button" data-steward-days="90">90 天</button>
+              </div>
+              <button id="stewardRefreshBtn" class="secondary" type="button">立即刷新</button>
+            </div>
+          </header>
 
-        <article class="steward-viz-card steward-leaf-card">
-          <div class="section-title compact">
+          <section class="steward-summary-grid" aria-label="巡检摘要">
+            <article class="steward-summary-card recent">
+              <div class="steward-summary-icon">巡</div>
+              <div>
+                <span>最近一次巡检</span>
+                <strong id="stewardRunTime">尚未生成快照</strong>
+                <div id="stewardRunMeta" class="steward-run-meta"></div>
+              </div>
+              <span id="stewardFreshnessBadge" class="badge steward-freshness">等待数据</span>
+            </article>
+
+            <article class="steward-summary-card coverage">
+              <div id="stewardCoverageRing" class="steward-mini-ring" style="--coverage:0">
+                <span id="stewardCoveragePercent">0%</span>
+              </div>
+              <div>
+                <span>巡检覆盖</span>
+                <strong id="stewardKpiObserved">-</strong>
+                <small id="stewardCoverageBadge" class="steward-inline-badge">等待数据</small>
+              </div>
+            </article>
+
+            <article class="steward-summary-card priority">
+              <div class="steward-summary-icon alert">!</div>
+              <div>
+                <span>高优先问题</span>
+                <strong><b id="stewardKpiP0">-</b> / <b id="stewardKpiP1">-</b></strong>
+                <small>P0 紧急 / P1 重要</small>
+              </div>
+            </article>
+
+            <article class="steward-summary-card watch">
+              <div class="steward-summary-icon watch">察</div>
+              <div>
+                <span>P2 观察项</span>
+                <strong id="stewardKpiP2">-</strong>
+                <small>持续跟踪，不抢占主行动</small>
+              </div>
+            </article>
+          </section>
+
+          <div id="stewardDashboardStatus" class="steward-inline-status top-gap">尚未加载巡检数据</div>
+
+          <section id="stewardOverview" class="steward-status-banner" aria-live="polite">
             <div>
-              <h3>问题枫叶图</h3>
-              <p class="field-note">一片叶子 = 一个合并问题组；颜色看严重度，大小看重复次数</p>
+              <div class="eyebrow">本轮结论</div>
+              <h2 id="stewardOverallTitle">等待巡检数据</h2>
+              <p id="stewardOverallSummary">最近一次巡检完成后，这里会直接说明整体结果与覆盖情况。</p>
             </div>
-            <span id="stewardLeafMeta" class="steward-viz-meta">等待数据</span>
-          </div>
-          <div id="stewardLeafChart" class="steward-leaf-chart" aria-label="问题枫叶分布图"></div>
-          <div id="stewardLeafDetail" class="steward-leaf-detail">悬停或点击叶片查看仓库、规则与证据。</div>
-        </article>
-      </section>
+            <div id="stewardDeltaStrip" class="steward-delta-strip">
+              <span class="steward-delta-chip">暂无上一轮对比</span>
+            </div>
+          </section>
 
-      <section id="stewardRecommendationsPanel" class="steward-panel steward-actions-panel top-gap">
-        <div class="section-title compact">
-          <div>
-            <h3>下一步建议</h3>
-            <p class="field-note">只给最值得先做的动作，不自动修改业务仓库</p>
-          </div>
-        </div>
-        <div id="stewardRecommendations" class="steward-recommendations">尚未加载</div>
-      </section>
+          <section id="stewardVisuals" class="steward-primary-grid">
+            <article class="steward-viz-card steward-radar-card">
+              <div class="section-title compact">
+                <div>
+                  <h3>六维巡检画像</h3>
+                  <p class="field-note">直接指标，不合成主观健康分</p>
+                </div>
+                <span id="stewardRadarMeta" class="steward-viz-meta">等待数据</span>
+              </div>
+              <div id="stewardRadarChart" class="steward-radar-chart" aria-label="六维巡检画像雷达图"></div>
+              <div id="stewardRadarLegend" class="steward-radar-legend"></div>
+            </article>
 
-      <section id="stewardFindingsPanel" class="steward-panel top-gap">
-        <div class="section-title compact steward-findings-title">
-          <div>
-            <h3>本轮问题</h3>
-            <p class="field-note">默认只看 P0 / P1；展开条目可查看建议和证据</p>
-          </div>
-        </div>
-        <div id="stewardFindingFilters" class="steward-finding-filters" aria-label="问题严重度筛选">
-          <button class="ghost steward-filter-btn active" type="button" data-steward-severity="ACTIONABLE">待处理</button>
-          <button class="ghost steward-filter-btn" type="button" data-steward-severity="ALL">全部</button>
-          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P0">P0</button>
-          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P1">P1</button>
-          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P2">P2</button>
-        </div>
-        <div id="stewardFindings" class="steward-findings">尚未加载</div>
-      </section>
+            <article class="steward-viz-card steward-leaf-card">
+              <div class="section-title compact">
+                <div>
+                  <h3>问题分布 · 枫叶图</h3>
+                  <p class="field-note">颜色看严重度，叶片大小看重复次数</p>
+                </div>
+                <span id="stewardLeafMeta" class="steward-viz-meta">等待数据</span>
+              </div>
+              <div id="stewardLeafChart" class="steward-leaf-chart" aria-label="问题枫叶分布图"></div>
+              <div id="stewardLeafDetail" class="steward-leaf-detail">悬停或点击叶片查看仓库、规则与证据。</div>
+            </article>
 
-      <details id="stewardTrendPanel" class="steward-fold top-gap">
-        <summary>
-          <span>历史趋势</span>
-          <span id="stewardTrendFoldMeta" class="steward-fold-meta">等待历史快照</span>
-        </summary>
-        <div class="steward-fold-body">
-          <div id="stewardTrendChart" class="steward-trend-chart" aria-label="巡检风险趋势"></div>
-          <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
-          <div class="steward-trend-footer">
-            <span id="stewardTrendSummary" class="field-note">等待历史快照</span>
-            <div class="steward-legend steward-line-legend"><span class="total">总问题</span><span class="high">P0+P1</span><span class="p2">P2</span></div>
-          </div>
-        </div>
-      </details>
+            <article id="stewardTrendPanel" class="steward-viz-card steward-trend-card">
+              <div class="section-title compact">
+                <div>
+                  <h3>近期巡检趋势</h3>
+                  <p id="stewardTrendSummary" class="field-note">等待历史快照</p>
+                </div>
+                <span id="stewardTrendFoldMeta" class="steward-viz-meta">等待历史快照</span>
+              </div>
+              <div id="stewardTrendChart" class="steward-trend-chart" aria-label="巡检风险趋势"></div>
+              <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
+              <div class="steward-trend-footer">
+                <span class="field-note">越低越好；重点看 P0+P1 是否持续下降</span>
+                <div class="steward-legend steward-line-legend"><span class="total">总问题</span><span class="high">P0+P1</span><span class="p2">P2</span></div>
+              </div>
+            </article>
+          </section>
 
-      <details id="stewardMatrixPanel" class="steward-fold top-gap">
-        <summary>
-          <span>仓库明细</span>
-          <span id="stewardMatrixSummary" class="steward-fold-meta">等待数据</span>
-        </summary>
-        <div class="steward-fold-body">
-          <div id="stewardMatrix" class="steward-matrix">尚未加载</div>
-        </div>
-      </details>
+          <section class="steward-secondary-grid">
+            <article id="stewardProjectPanel" class="steward-viz-card steward-project-card">
+              <div class="section-title compact">
+                <div>
+                  <h3>项目巡检概览</h3>
+                  <p class="field-note">优先显示高优先问题和部分覆盖目标</p>
+                </div>
+                <span id="stewardProjectOverviewMeta" class="steward-viz-meta">等待数据</span>
+              </div>
+              <div id="stewardProjectOverview" class="steward-project-overview">尚未加载</div>
+            </article>
 
-      <details class="steward-limitations steward-fold top-gap">
-        <summary>
-          <span id="stewardLimitationsSummary">证据边界与未覆盖能力</span>
-        </summary>
-        <div id="stewardLimitations" class="audit-list steward-fold-body">尚未加载</div>
-      </details>
+            <article class="steward-viz-card steward-risk-card">
+              <div class="section-title compact">
+                <div>
+                  <h3>风险分布</h3>
+                  <p class="field-note">基于本轮原始 Finding 严重度</p>
+                </div>
+              </div>
+              <div class="steward-risk-layout">
+                <div id="stewardRiskDonut" class="steward-risk-donut">
+                  <div><strong id="stewardRiskTotal">0</strong><span>总问题</span></div>
+                </div>
+                <div id="stewardRiskLegend" class="steward-risk-legend"></div>
+              </div>
+            </article>
+
+            <article id="stewardRecommendationsPanel" class="steward-viz-card steward-actions-panel">
+              <div class="section-title compact">
+                <div>
+                  <h3>下一步动作</h3>
+                  <p class="field-note">只保留最值得先做的动作</p>
+                </div>
+              </div>
+              <div id="stewardRecommendations" class="steward-recommendations">尚未加载</div>
+            </article>
+          </section>
+
+          <section id="stewardFindingsPanel" class="steward-detail-card">
+            <div class="section-title compact steward-findings-title">
+              <div>
+                <h3>重点发现 / 异常详情</h3>
+                <p class="field-note">默认只看 P0 / P1；展开条目可查看建议和证据</p>
+              </div>
+              <div id="stewardFindingFilters" class="steward-finding-filters" aria-label="问题严重度筛选">
+                <button class="ghost steward-filter-btn active" type="button" data-steward-severity="ACTIONABLE">待处理</button>
+                <button class="ghost steward-filter-btn" type="button" data-steward-severity="ALL">全部</button>
+                <button class="ghost steward-filter-btn" type="button" data-steward-severity="P0">P0</button>
+                <button class="ghost steward-filter-btn" type="button" data-steward-severity="P1">P1</button>
+                <button class="ghost steward-filter-btn" type="button" data-steward-severity="P2">P2</button>
+              </div>
+            </div>
+            <div id="stewardFindings" class="steward-findings">尚未加载</div>
+          </section>
+
+          <details id="stewardMatrixPanel" class="steward-fold top-gap">
+            <summary>
+              <span>完整仓库明细</span>
+              <span id="stewardMatrixSummary" class="steward-fold-meta">等待数据</span>
+            </summary>
+            <div class="steward-fold-body">
+              <div id="stewardMatrix" class="steward-matrix">尚未加载</div>
+            </div>
+          </details>
+
+          <details class="steward-limitations steward-fold top-gap">
+            <summary>
+              <span id="stewardLimitationsSummary">证据边界与未覆盖能力</span>
+            </summary>
+            <div id="stewardLimitations" class="audit-list steward-fold-body">尚未加载</div>
+          </details>
+
+          <footer class="steward-footer">山高水长 · 项目常青 · 巡检只描述证据，不代替产品与生产验收</footer>
+        </div>
+      </div>
     </section>
 
     <section class="card">
