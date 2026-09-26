@@ -2,12 +2,12 @@
   "schema_version": 1,
   "product": "fuzi-partner",
   "channel": "stable",
-  "latest_version_code": 3,
-  "latest_version_name": "0.2.1",
-  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.1/FuziPartner-v0.2.1.apk",
-  "apk_sha256": "edbb91ac601af0c8f05b1ac59f7d7bf79e36599a21d352f9c513f9e9ecca4da7",
-  "apk_size": 92300791,
+  "latest_version_code": 5,
+  "latest_version_name": "0.2.3",
+  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.3/FuziPartner-v0.2.3.apk",
+  "apk_sha256": "115ff09a770783af9eb6ceaabd5603caa946cf9bc160446a88886024bf79f105",
+  "apk_size": 92304463,
   "signer_cert_sha256": "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC",
-  "release_notes": "新增“关于夫子陪伴 → 检查更新”手动更新入口，并强化公开更新元数据、APK SHA-256、大小与签名证书校验；不包含 DS-V2 大规模 UI 改版。",
-  "published_at": "2026-09-25T14:56:53Z"
+  "release_notes": "v0.2.3 恢复公共发布链，产品行为保持已验收基线；已完成 CI、模拟器、签名与 vivo Android 16 原位升级验证。v0.2.1 继续作为最低支持版本。",
+  "published_at": "2026-09-26T11:34:03Z"
 }
