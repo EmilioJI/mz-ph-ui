@@ -2,13 +2,13 @@
   "schema_version": 2,
   "product": "fuzi-partner",
   "channel": "stable",
-  "latest_version_code": 3,
-  "latest_version_name": "0.2.1",
+  "latest_version_code": 4,
+  "latest_version_name": "0.2.2",
   "minimum_supported_version_code": 3,
-  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.1/FuziPartner-v0.2.1.apk",
-  "apk_sha256": "edbb91ac601af0c8f05b1ac59f7d7bf79e36599a21d352f9c513f9e9ecca4da7",
-  "apk_size": 92300791,
+  "download_url": "https://github.com/EmilioJI/mz-ph-ui/releases/download/fuzi-v0.2.2/FuziPartner-v0.2.2.apk",
+  "apk_sha256": "00a873e8811c4303dc64ff8b5e3731ace07e873ec215181d9366810bdd8b6c1e",
+  "apk_size": 92304459,
   "signer_cert_sha256": "F98BE0E3E9C11D4F7AED4DE54441AD87D12F99362F45EFAB84C933E9309641CC",
-  "release_notes": "v0.2.1 当前稳定版本；v0.2.2+ 使用本策略文件判断可选更新与最低支持版本。",
-  "published_at": "2026-09-25T14:56:53Z"
+  "release_notes": "v0.2.2 当前稳定候选已完成 CI、模拟器和 vivo Android 16 真机升级验收；v0.2.1 继续保持最低支持版本，不启用强制更新。",
+  "published_at": "2026-09-26T06:46:17Z"
 }
