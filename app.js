@@ -2579,6 +2579,213 @@ function renderStewardProjectOverview(targets,findings){
   }
 }
 
+function stewardProgressCategoryLabel(value){
+  const labels={
+    fix:"修复 / Debug",
+    ui:"UI / 视觉",
+    feature:"功能",
+    refactor:"重构 / 清理",
+    test_ci:"测试 / CI",
+    docs:"文档",
+    release:"构建 / 发布",
+    other:"其他"
+  };
+  return labels[String(value||"")]||String(value||"其他");
+}
+
+function stewardProgressActivity(repo){
+  const prs=repo?.prs||{};
+  const issues=repo?.issues||{};
+  const workflows=repo?.workflows||{};
+  return stewardNumber(repo?.commits_count)
+    +stewardNumber(prs.opened)+stewardNumber(prs.merged)+stewardNumber(prs.closed)
+    +stewardNumber(issues.opened)+stewardNumber(issues.closed)
+    +stewardNumber(workflows.runs);
+}
+
+function stewardProgressStateLabel(value){
+  const labels={ACTIVE:"活跃",QUIET:"无活动",PARTIAL:"部分采集",UNKNOWN:"未知"};
+  return labels[String(value||"").toUpperCase()]||String(value||"-");
+}
+
+function renderStewardDailyProgress(progress){
+  const root=$("stewardDailyRepos");
+  const date=$("stewardDailyDate");
+  const coverage=$("stewardDailyCoverage");
+  const ids={
+    active:"stewardDailyActive",
+    commits:"stewardDailyCommits",
+    merged:"stewardDailyMerged",
+    fix:"stewardDailyFix",
+    failures:"stewardDailyFailures"
+  };
+  root.replaceChildren();
+
+  if(!progress||typeof progress!=="object"){
+    date.textContent="等待首份日报";
+    coverage.textContent="未采集";
+    coverage.className="steward-viz-meta";
+    Object.values(ids).forEach(id=>$(id).textContent="-");
+    const empty=document.createElement("div");
+    empty.className="steward-daily-empty";
+    empty.textContent="尚未生成昨日进展；下一次北京时间 00:30 巡检会自动生成。";
+    root.appendChild(empty);
+    return;
+  }
+
+  const totals=progress.totals&&typeof progress.totals==="object"?progress.totals:{};
+  const categories=totals.categories&&typeof totals.categories==="object"?totals.categories:{};
+  date.textContent=String(progress.local_date||"日期未知")+" · UTC+8";
+  const coverageValue=String(progress.coverage||"UNKNOWN").toUpperCase();
+  coverage.textContent="采集 · "+stewardCoverageLabel(coverageValue);
+  coverage.className="steward-viz-meta daily-"+coverageValue.toLowerCase();
+  $(ids.active).textContent=String(stewardNumber(totals.repos_active));
+  $(ids.commits).textContent=String(stewardNumber(totals.commits));
+  $(ids.merged).textContent=String(stewardNumber(totals.prs_merged));
+  $(ids.fix).textContent=String(stewardNumber(categories.fix));
+  $(ids.failures).textContent=String(stewardNumber(totals.run_failures));
+
+  const repos=(Array.isArray(progress.repositories)?progress.repositories:[])
+    .slice()
+    .sort((a,b)=>{
+      const aPartial=String(a?.state||"").toUpperCase()==="PARTIAL"?1:0;
+      const bPartial=String(b?.state||"").toUpperCase()==="PARTIAL"?1:0;
+      return stewardProgressActivity(b)-stewardProgressActivity(a)
+        ||bPartial-aPartial
+        ||String(a?.repo||"").localeCompare(String(b?.repo||""));
+    });
+
+  const active=repos.filter(repo=>stewardProgressActivity(repo)>0);
+  if(!active.length){
+    const empty=document.createElement("div");
+    empty.className="steward-daily-empty";
+    empty.textContent="这一天没有观察到 GitHub 活动；这不代表没有本地开发或未推送工作。";
+    root.appendChild(empty);
+    return;
+  }
+
+  active.slice(0,10).forEach(repo=>{
+    const item=document.createElement("article");
+    item.className="steward-daily-repo";
+
+    const head=document.createElement("div");
+    head.className="steward-daily-repo-head";
+    const name=document.createElement("strong");
+    name.textContent=stewardRepoShort(repo?.repo);
+    const state=document.createElement("span");
+    const stateValue=String(repo?.state||"UNKNOWN").toUpperCase();
+    state.className="steward-daily-state "+stateValue.toLowerCase();
+    state.textContent=stewardProgressStateLabel(stateValue);
+    head.append(name,state);
+
+    const stats=document.createElement("div");
+    stats.className="steward-daily-repo-stats";
+    const prs=repo?.prs||{};
+    const issues=repo?.issues||{};
+    const workflows=repo?.workflows||{};
+    stats.textContent=[
+      stewardNumber(repo?.commits_count)+" commits",
+      "PR 合并 "+stewardNumber(prs.merged),
+      "Issue 关闭 "+stewardNumber(issues.closed),
+      "CI 失败 "+stewardNumber(workflows.failures)
+    ].join(" · ");
+
+    const categoryRoot=document.createElement("div");
+    categoryRoot.className="steward-daily-categories";
+    Object.entries(repo?.categories||{})
+      .filter(([,count])=>stewardNumber(count)>0)
+      .sort((a,b)=>stewardNumber(b[1])-stewardNumber(a[1]))
+      .slice(0,5)
+      .forEach(([key,count])=>{
+        const chip=document.createElement("span");
+        chip.className="steward-daily-category "+String(key);
+        chip.textContent=stewardProgressCategoryLabel(key)+" "+String(count);
+        categoryRoot.appendChild(chip);
+      });
+
+    const changes=document.createElement("div");
+    changes.className="steward-daily-changes";
+    const commitItems=Array.isArray(repo?.commits)?repo.commits.slice(0,2):[];
+    commitItems.forEach(commit=>{
+      const row=document.createElement("div");
+      row.className="steward-daily-change";
+      const tag=document.createElement("span");
+      tag.className="steward-daily-change-tag";
+      tag.textContent=stewardProgressCategoryLabel(commit?.category);
+      const url=stewardSafeEvidence(commit?.url);
+      const textNode=url?document.createElement("a"):document.createElement("span");
+      textNode.textContent=String(commit?.message||"(无提交说明)");
+      if(url){
+        textNode.href=url;
+        textNode.target="_blank";
+        textNode.rel="noopener noreferrer";
+      }
+      row.append(tag,textNode);
+      changes.appendChild(row);
+    });
+
+    const merged=(Array.isArray(prs.items)?prs.items:[]).find(entry=>entry?.event==="merged");
+    if(merged){
+      const row=document.createElement("div");
+      row.className="steward-daily-change";
+      const tag=document.createElement("span");
+      tag.className="steward-daily-change-tag pr";
+      tag.textContent="PR 合并";
+      const url=stewardSafeEvidence(merged?.url);
+      const textNode=url?document.createElement("a"):document.createElement("span");
+      textNode.textContent="#"+String(merged?.number||"-")+" · "+String(merged?.title||"");
+      if(url){
+        textNode.href=url;
+        textNode.target="_blank";
+        textNode.rel="noopener noreferrer";
+      }
+      row.append(tag,textNode);
+      changes.appendChild(row);
+    }
+
+    const failed=(Array.isArray(workflows.items)?workflows.items:[])
+      .find(run=>["failure","timed_out","startup_failure"].includes(String(run?.conclusion||"")));
+    if(failed){
+      const row=document.createElement("div");
+      row.className="steward-daily-change";
+      const tag=document.createElement("span");
+      tag.className="steward-daily-change-tag ci";
+      tag.textContent="CI "+String(failed?.conclusion||"失败");
+      const url=stewardSafeEvidence(failed?.url);
+      const textNode=url?document.createElement("a"):document.createElement("span");
+      textNode.textContent=String(failed?.path||"workflow")+" · "+String(failed?.ref||"-");
+      if(url){
+        textNode.href=url;
+        textNode.target="_blank";
+        textNode.rel="noopener noreferrer";
+      }
+      row.append(tag,textNode);
+      changes.appendChild(row);
+    }
+
+    if(!changes.childNodes.length){
+      const note=document.createElement("div");
+      note.className="steward-daily-change muted";
+      note.textContent="有 GitHub 活动，但没有进入摘要上限的 commit / merged PR / failed CI 明细。";
+      changes.appendChild(note);
+    }
+
+    item.append(head,stats,categoryRoot,changes);
+    root.appendChild(item);
+  });
+
+  const hiddenActive=Math.max(0,active.length-10);
+  const quiet=repos.filter(repo=>String(repo?.state||"").toUpperCase()==="QUIET").length;
+  if(hiddenActive||quiet){
+    const footer=document.createElement("div");
+    footer.className="steward-daily-footnote";
+    footer.textContent=(hiddenActive?"另有 "+hiddenActive+" 个活跃仓库未在首屏展开。":"")
+      +(hiddenActive&&quiet?" ":"")
+      +(quiet?quiet+" 个仓库昨日无 GitHub 活动。":"");
+    root.appendChild(footer);
+  }
+}
+
 function renderStewardLimitations(values){
   const root=$("stewardLimitations");
   const summary=$("stewardLimitationsSummary");
@@ -2630,6 +2837,7 @@ function renderStewardDashboard(value){
     $("stewardDashboardStatus").textContent="巡检快照读取成功。";
   }
 
+  renderStewardDailyProgress(value?.daily_progress||null);
   renderStewardCoverageRing(latest,targets);
   renderStewardRiskDistribution(latest,findings);
   renderStewardProjectOverview(targets,findings);

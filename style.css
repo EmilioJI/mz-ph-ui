@@ -1417,3 +1417,209 @@ body.steward-focus-mode footer:not(.steward-footer){display:none}
   font-size:10px;
   font-weight:900;
 }
+
+
+/* Dev Steward previous-day progress */
+.steward-daily-card{
+  scroll-margin-top:18px;
+  margin:13px 0;
+  padding:16px;
+  border:1px solid #dbe2dc;
+  border-radius:15px;
+  background:
+    linear-gradient(135deg,rgba(247,250,245,.96),rgba(255,253,248,.96));
+  box-shadow:0 7px 18px rgba(46,70,57,.045);
+  animation:stewardCardRise .42s cubic-bezier(.2,.75,.2,1) .06s both;
+}
+.steward-daily-title{align-items:flex-start}
+.steward-daily-title h3{
+  margin:2px 0 0;
+  color:#28473d;
+  font-family:"Noto Serif SC","Songti SC",serif;
+  font-size:15px;
+}
+.steward-daily-badges{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.steward-viz-meta.daily-complete{background:#e5f1e8;color:#467253}
+.steward-viz-meta.daily-partial{background:#f8eddc;color:#8c642d}
+.steward-viz-meta.daily-blocked_auth{background:#f6e5e1;color:#944b42}
+
+.steward-daily-summary{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.steward-daily-metric{
+  min-height:78px;
+  padding:11px 12px;
+  border:1px solid #e2e7e1;
+  border-radius:11px;
+  background:rgba(255,255,252,.86);
+}
+.steward-daily-metric span{
+  display:block;
+  color:#7c8a81;
+  font-size:9px;
+  font-weight:800;
+}
+.steward-daily-metric strong{
+  display:block;
+  margin-top:5px;
+  color:#2b594b;
+  font-family:"Noto Serif SC","Songti SC",serif;
+  font-size:22px;
+  line-height:1;
+}
+.steward-daily-metric small{
+  display:block;
+  margin-top:7px;
+  color:#9aa39d;
+  font-size:8px;
+  line-height:1.35;
+}
+.steward-daily-metric.fix strong{color:#ae742d}
+.steward-daily-metric.danger strong{color:#a54a40}
+
+.steward-daily-repos{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.steward-daily-repo{
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid #e2e6df;
+  border-radius:11px;
+  background:rgba(255,255,252,.87);
+}
+.steward-daily-repo-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.steward-daily-repo-head strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#344d44;
+  font-size:11px;
+}
+.steward-daily-state{
+  flex:0 0 auto;
+  padding:3px 7px;
+  border-radius:999px;
+  background:#e7f1e9;
+  color:#4d7758;
+  font-size:8px;
+  font-weight:850;
+}
+.steward-daily-state.partial{background:#f7ead7;color:#8c632d}
+.steward-daily-state.unknown{background:#f6e3df;color:#914d44}
+.steward-daily-state.quiet{background:#f0f1ed;color:#808a83}
+.steward-daily-repo-stats{
+  margin-top:5px;
+  color:#7f8b84;
+  font-size:8.5px;
+  line-height:1.45;
+}
+.steward-daily-categories{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:7px;
+}
+.steward-daily-category{
+  padding:3px 6px;
+  border-radius:999px;
+  background:#edf2ee;
+  color:#60756a;
+  font-size:7.5px;
+  font-weight:800;
+}
+.steward-daily-category.fix{background:#f7ead9;color:#986826}
+.steward-daily-category.ui{background:#e9edf6;color:#5f6f91}
+.steward-daily-category.feature{background:#e3f0e6;color:#487755}
+.steward-daily-category.refactor{background:#ece8f3;color:#74658d}
+.steward-daily-category.test_ci{background:#e8f0f1;color:#52777b}
+.steward-daily-category.release{background:#f5e6e1;color:#925348}
+.steward-daily-category.docs{background:#f0eee7;color:#796d5d}
+
+.steward-daily-changes{
+  display:grid;
+  gap:4px;
+  margin-top:8px;
+  padding-top:7px;
+  border-top:1px solid #edf0eb;
+}
+.steward-daily-change{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:7px;
+  align-items:start;
+  color:#64756c;
+  font-size:8.5px;
+  line-height:1.4;
+}
+.steward-daily-change-tag{
+  min-width:48px;
+  padding:2px 5px;
+  border-radius:6px;
+  background:#edf2ed;
+  color:#5c7568;
+  text-align:center;
+  font-size:7px;
+  font-weight:850;
+}
+.steward-daily-change-tag.pr{background:#e9edf6;color:#606e91}
+.steward-daily-change-tag.ci{background:#f6e4e0;color:#944d44}
+.steward-daily-change a{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#43675a;
+  text-decoration:none;
+  border-bottom:1px dotted #91a69b;
+}
+.steward-daily-empty{
+  grid-column:1/-1;
+  padding:18px;
+  border:1px dashed #d8dfd9;
+  border-radius:10px;
+  background:rgba(252,253,249,.7);
+  color:#7d8b82;
+  font-size:10px;
+  text-align:center;
+}
+.steward-daily-footnote{
+  grid-column:1/-1;
+  padding:4px 2px 0;
+  color:#929d96;
+  font-size:8px;
+  text-align:right;
+}
+
+@media(max-width:920px){
+  .steward-daily-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .steward-daily-repos{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .steward-daily-card{padding:13px}
+  .steward-daily-title{flex-direction:column}
+  .steward-daily-badges{justify-content:flex-start}
+  .steward-daily-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .steward-daily-metric{min-height:72px}
+  .steward-daily-metric strong{font-size:20px}
+}
+@media(prefers-reduced-motion:reduce){
+  .steward-daily-card{animation:none!important}
+}
