@@ -205,6 +205,82 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
 }
 .steward-inline-status.bad{border-left-color:#9a4d42;background:#faece8;color:#7c433c}
 
+/* Steward visual analytics */
+.steward-visual-grid{
+  scroll-margin-top:72px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px
+}
+.steward-viz-card{
+  min-width:0;padding:16px;border:1px solid #e2d5c6;border-radius:16px;
+  background:linear-gradient(180deg,#fffdfa 0%,#faf6f0 100%);
+  overflow:hidden
+}
+.steward-viz-meta{
+  flex:0 0 auto;padding:5px 8px;border-radius:999px;background:#f2ebe2;
+  color:#806c5c;font-size:10px;font-weight:800;white-space:nowrap
+}
+.steward-radar-chart,.steward-leaf-chart{
+  min-height:310px;display:flex;align-items:center;justify-content:center
+}
+.steward-radar-chart svg,.steward-leaf-chart svg{display:block;width:100%;height:auto;max-height:320px}
+.steward-radar-grid{
+  fill:rgba(255,255,255,.28);stroke:#ddd0c0;stroke-width:1
+}
+.steward-radar-grid.level-100{stroke:#c9b7a2;stroke-width:1.2}
+.steward-radar-axis{stroke:#dfd4c8;stroke-width:1}
+.steward-radar-shape{
+  fill:rgba(43,111,91,.18);stroke:#2f7561;stroke-width:2.4;
+  vector-effect:non-scaling-stroke
+}
+.steward-radar-dot{fill:#2f7561;stroke:#fffdfa;stroke-width:2;cursor:help}
+.steward-radar-label{
+  fill:#5d4b3e;font-size:10px;font-weight:760;font-family:Inter,"Microsoft YaHei",sans-serif
+}
+.steward-radar-value{fill:#2f7561;font-size:10px;font-weight:900}
+.steward-radar-legend{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:4px
+}
+.steward-radar-metric{
+  padding:8px 9px;border:1px solid #eadfd2;border-radius:10px;background:rgba(255,255,255,.7)
+}
+.steward-radar-metric>div{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.steward-radar-metric span{font-size:10px;font-weight:800;color:#6e5a4b}
+.steward-radar-metric strong{font-size:12px;color:#2f7561}
+.steward-radar-metric small{display:block;margin-top:3px;color:#978679;font-size:9px;line-height:1.4}
+
+.steward-leaf-chart{position:relative}
+.steward-leaf-stem,.steward-leaf-branch{
+  fill:none;stroke:#89765b;stroke-linecap:round;vector-effect:non-scaling-stroke
+}
+.steward-leaf-stem{stroke-width:3}
+.steward-leaf-branch{stroke-width:1.5;opacity:.72}
+.steward-maple-leaf{cursor:pointer;outline:none;transition:filter .12s ease}
+.steward-maple-leaf:hover,.steward-maple-leaf:focus{filter:brightness(1.05) drop-shadow(0 4px 5px rgba(72,49,31,.18))}
+.steward-maple-shape{stroke:#fffdfa;stroke-width:2;vector-effect:non-scaling-stroke}
+.steward-maple-vein{stroke:rgba(255,255,255,.55);stroke-width:1.4;vector-effect:non-scaling-stroke}
+.steward-maple-leaf.severity-p0 .steward-maple-shape{fill:#a94a3f}
+.steward-maple-leaf.severity-p1 .steward-maple-shape{fill:#c8863d}
+.steward-maple-leaf.severity-p2 .steward-maple-shape{fill:#5f8c6b}
+.steward-maple-count{
+  pointer-events:none;fill:#fff;font-size:11px;font-weight:900;
+  font-family:Inter,"Microsoft YaHei",sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.2)
+}
+.steward-leaf-root-label{fill:#8d7a69;font-size:9px;font-weight:700}
+.steward-leaf-detail{
+  min-height:76px;padding:10px 11px;border:1px solid #e7dacb;border-radius:11px;
+  background:rgba(255,255,255,.72);color:#79685a;font-size:11px;line-height:1.5
+}
+.steward-leaf-detail-head{display:flex;align-items:center;gap:7px;color:#3f3026}
+.steward-leaf-detail p{margin:5px 0 0}
+.steward-leaf-detail a{
+  display:inline-block;margin-top:5px;color:#73523d;text-decoration:none;
+  font-size:10px;font-weight:800;border-bottom:1px dotted #a38b78
+}
+.steward-leaf-more{margin-top:4px;color:#99887b;font-size:9px;text-align:center}
+.steward-severity.leaf-p0{background:#f7dfda;color:#8c4138}
+.steward-severity.leaf-p1{background:#f7ead7;color:#8b612d}
+.steward-severity.leaf-p2{background:#e5efe7;color:#4f7758}
+
 .steward-panel{
   scroll-margin-top:72px;
   padding:17px;border:1px solid #e2d5c6;border-radius:16px;background:#fbf8f4;min-width:0
@@ -295,23 +371,35 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
 .steward-limitations .steward-fold-body{padding-top:12px}
 
 .steward-trend-chart{
-  height:210px;display:flex;align-items:flex-end;gap:5px;padding:14px 8px 5px;
-  border-radius:11px;background:linear-gradient(180deg,#fff 0,#f7f2ec 100%);
+  height:235px;display:flex;align-items:center;justify-content:center;padding:4px 0;
+  border-radius:11px;background:linear-gradient(180deg,#fff 0,#f8f4ef 100%);
   border:1px solid #eadfd2;overflow:hidden
 }
-.steward-trend-column{height:100%;min-width:5px;flex:1;display:flex;align-items:flex-end}
-.steward-trend-stack{width:100%;min-height:4px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 2px 2px;overflow:hidden}
-.steward-trend-segment{display:block;min-height:2px}
-.steward-trend-segment.p0{background:#9a4d42}
-.steward-trend-segment.p1{background:#b98745}
-.steward-trend-segment.p2{background:#a99b87}
-.steward-trend-segment.empty{height:3px;background:#d8cfc4}
+.steward-trend-chart svg{display:block;width:100%;height:100%}
+.steward-line-grid{stroke:#e8dfd5;stroke-width:1;vector-effect:non-scaling-stroke}
+.steward-line-axis-label{fill:#9a897c;font-size:8px;font-family:Inter,"Microsoft YaHei",sans-serif}
+.steward-line-area{fill:rgba(44,109,89,.08)}
+.steward-line-series{
+  fill:none;stroke-linecap:round;stroke-linejoin:round;
+  vector-effect:non-scaling-stroke
+}
+.steward-line-series.total{stroke:#2e715d;stroke-width:2.6}
+.steward-line-series.high{stroke:#a94a3f;stroke-width:1.9}
+.steward-line-series.p2{stroke:#b58a43;stroke-width:1.7}
+.steward-line-dot{stroke:#fff;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.steward-line-dot.total{fill:#2e715d}
+.steward-line-dot.high{fill:#a94a3f}
+.steward-line-dot.p2{fill:#b58a43}
 .steward-trend-axis{display:flex;justify-content:space-between;margin-top:6px;color:#9a897c;font-size:10px}
 .steward-trend-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:6px}
 .steward-legend{display:flex;gap:14px;color:#847367;font-size:10px}
-.steward-legend span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:5px;background:#a99b87}
-.steward-legend span:nth-child(1)::before{background:#9a4d42}
-.steward-legend span:nth-child(2)::before{background:#b98745}
+.steward-legend span::before{
+  content:"";display:inline-block;width:14px;height:3px;border-radius:999px;
+  margin-right:5px;vertical-align:middle;background:#a99b87
+}
+.steward-line-legend .total::before{background:#2e715d}
+.steward-line-legend .high::before{background:#a94a3f}
+.steward-line-legend .p2::before{background:#b58a43}
 
 .steward-matrix{display:grid;gap:4px;overflow-x:auto}
 .steward-matrix-row{
@@ -325,6 +413,17 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
 .steward-matrix-head{font-weight:850;color:#756456;border-bottom:1px solid #ddd0c0;border-radius:0!important;background:transparent!important}
 .steward-matrix-row span:first-child{overflow-wrap:anywhere}
 .steward-matrix-row .risk-count{font-weight:850}
+.steward-heat-cell{
+  display:grid;place-items:center;min-width:30px;min-height:27px;border-radius:7px;
+  font-weight:850;transition:background .12s ease,color .12s ease
+}
+.steward-heat-cell.heat-0{color:#a69a90;background:transparent}
+.steward-heat-cell.p0.heat-1{background:#f5ded9;color:#91483f}
+.steward-heat-cell.p0.heat-2,.steward-heat-cell.p0.heat-3{background:#eebfb7;color:#7e332b}
+.steward-heat-cell.p1.heat-1{background:#f6e8d4;color:#8d642e}
+.steward-heat-cell.p1.heat-2,.steward-heat-cell.p1.heat-3{background:#efd4ad;color:#76501e}
+.steward-heat-cell.p2.heat-1{background:#e6eee7;color:#53705a}
+.steward-heat-cell.p2.heat-2,.steward-heat-cell.p2.heat-3{background:#cedfd2;color:#405f47}
 .steward-matrix-row a{color:#684b38;text-decoration:none;border-bottom:1px dotted #aa917e}
 .steward-matrix-repo a{font-weight:750}
 .coverage-observed{color:#47694b}
@@ -335,6 +434,7 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
 
 @media(max-width:980px){
   .steward-overview{grid-template-columns:1fr}
+  .steward-visual-grid{grid-template-columns:1fr}
   .steward-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:620px){
@@ -355,6 +455,7 @@ footer{margin-top:24px;text-align:center;color:#998a7f;font-size:11px}
   .steward-finding-summary-meta{margin-left:0}
   .steward-fold>summary{align-items:flex-start;flex-wrap:wrap}
   .steward-fold-meta{order:3;width:100%;margin-left:0}
-  .steward-fold>summary::after{position:absolute;right:18px}
+  .steward-radar-legend{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .steward-radar-chart,.steward-leaf-chart{min-height:270px}
   .steward-trend-footer{align-items:flex-start;flex-direction:column}
 }

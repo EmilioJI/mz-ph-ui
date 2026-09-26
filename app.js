@@ -1488,6 +1488,321 @@ function stewardDeltaChip(label,delta){
   return chip;
 }
 
+function stewardClampPercent(value){
+  return Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+}
+
+function stewardTargetKey(value){
+  return String(value?.repo||"-")+"|"+String(value?.ref||"-");
+}
+
+function stewardSvg(name,attrs={},textValue=""){
+  const node=document.createElementNS("http://www.w3.org/2000/svg",name);
+  for(const [key,value] of Object.entries(attrs||{})){
+    if(value!==undefined&&value!==null)node.setAttribute(key,String(value));
+  }
+  if(textValue!=="")node.textContent=String(textValue);
+  return node;
+}
+
+function stewardVisualMetrics(latest,findings,targets){
+  const targetRows=Array.isArray(targets)?targets:[];
+  const findingRows=Array.isArray(findings)?findings:[];
+  const targetCount=Math.max(1,stewardNumber(latest?.targets_count??targetRows.length));
+  const observed=targetRows.filter(target=>String(target?.state||"").toUpperCase()==="OBSERVED").length;
+
+  const p0Targets=new Set();
+  const p1Targets=new Set();
+  const ciTargets=new Set();
+  const instructionTargets=new Set();
+  let evidenceCount=0;
+
+  for(const finding of findingRows){
+    const key=stewardTargetKey(finding);
+    const severity=String(finding?.severity||"").toUpperCase();
+    const rule=String(finding?.rule||"");
+    if(severity==="P0")p0Targets.add(key);
+    if(severity==="P1")p1Targets.add(key);
+    if(rule==="CI_FAILURE")ciTargets.add(key);
+    if(rule==="INSTRUCTION_CONFLICT_CANDIDATE")instructionTargets.add(key);
+    if((Array.isArray(finding?.evidence)?finding.evidence:[]).some(stewardSafeEvidence)){
+      evidenceCount+=1;
+    }
+  }
+
+  const cleanRatio=set=>stewardClampPercent(100*(targetCount-Math.min(targetCount,set.size))/targetCount);
+  const evidenceValue=findingRows.length
+    ?stewardClampPercent(100*evidenceCount/findingRows.length)
+    :100;
+
+  return [
+    {
+      label:"覆盖",
+      value:stewardClampPercent(100*observed/targetCount),
+      detail:observed+"/"+targetCount+" 个目标已观测"
+    },
+    {
+      label:"P0 控制",
+      value:cleanRatio(p0Targets),
+      detail:p0Targets.size+" 个目标存在 P0"
+    },
+    {
+      label:"P1 控制",
+      value:cleanRatio(p1Targets),
+      detail:p1Targets.size+" 个目标存在 P1"
+    },
+    {
+      label:"CI 稳定",
+      value:cleanRatio(ciTargets),
+      detail:ciTargets.size+" 个目标出现 CI_FAILURE"
+    },
+    {
+      label:"指令一致",
+      value:cleanRatio(instructionTargets),
+      detail:instructionTargets.size+" 个目标存在指令冲突候选"
+    },
+    {
+      label:"证据完整",
+      value:evidenceValue,
+      detail:findingRows.length
+        ?evidenceCount+"/"+findingRows.length+" 条 Finding 含证据链接"
+        :"当前无 Finding"
+    }
+  ];
+}
+
+function renderStewardRadar(latest,findings,targets){
+  const root=$("stewardRadarChart");
+  const legend=$("stewardRadarLegend");
+  const meta=$("stewardRadarMeta");
+  root.replaceChildren();
+  legend.replaceChildren();
+
+  if(!latest){
+    root.textContent="等待巡检快照。";
+    meta.textContent="等待数据";
+    return;
+  }
+
+  const metrics=stewardVisualMetrics(latest,findings,targets);
+  meta.textContent="0–100% · 6 个直接指标";
+
+  const width=360;
+  const height=310;
+  const cx=180;
+  const cy=142;
+  const radius=98;
+  const svg=stewardSvg("svg",{
+    viewBox:"0 0 "+width+" "+height,
+    role:"img",
+    "aria-label":"六维巡检画像雷达图"
+  });
+
+  const angles=metrics.map((_,index)=>-Math.PI/2+index*Math.PI*2/metrics.length);
+  const pointAt=(angle,r)=>[
+    cx+Math.cos(angle)*r,
+    cy+Math.sin(angle)*r
+  ];
+  const polygonPoints=(scale)=>angles
+    .map(angle=>pointAt(angle,radius*scale).map(value=>value.toFixed(1)).join(","))
+    .join(" ");
+
+  for(const level of [0.25,0.5,0.75,1]){
+    svg.appendChild(stewardSvg("polygon",{
+      points:polygonPoints(level),
+      class:"steward-radar-grid level-"+String(Math.round(level*100))
+    }));
+  }
+
+  angles.forEach((angle,index)=>{
+    const [x,y]=pointAt(angle,radius);
+    svg.appendChild(stewardSvg("line",{
+      x1:cx,y1:cy,x2:x,y2:y,class:"steward-radar-axis"
+    }));
+
+    const [lx,ly]=pointAt(angle,radius+29);
+    const label=stewardSvg("text",{
+      x:lx,y:ly,
+      class:"steward-radar-label",
+      "text-anchor":Math.abs(lx-cx)<8?"middle":lx<cx?"end":"start",
+      "dominant-baseline":"middle"
+    });
+    const name=stewardSvg("tspan",{x:lx,dy:"-0.2em"},metrics[index].label);
+    const value=stewardSvg("tspan",{
+      x:lx,dy:"1.35em",class:"steward-radar-value"
+    },metrics[index].value+"%");
+    label.append(name,value);
+    const title=stewardSvg("title",{},metrics[index].label+"："+metrics[index].value+"% · "+metrics[index].detail);
+    label.appendChild(title);
+    svg.appendChild(label);
+  });
+
+  const dataPoints=metrics.map((metric,index)=>{
+    const [x,y]=pointAt(angles[index],radius*metric.value/100);
+    return [x,y];
+  });
+  svg.appendChild(stewardSvg("polygon",{
+    points:dataPoints.map(point=>point.map(value=>value.toFixed(1)).join(",")).join(" "),
+    class:"steward-radar-shape"
+  }));
+
+  dataPoints.forEach((point,index)=>{
+    const dot=stewardSvg("circle",{
+      cx:point[0],cy:point[1],r:4.2,class:"steward-radar-dot",
+      tabindex:"0"
+    });
+    dot.appendChild(stewardSvg("title",{},metrics[index].label+"："+metrics[index].value+"% · "+metrics[index].detail));
+    svg.appendChild(dot);
+  });
+
+  root.appendChild(svg);
+
+  metrics.forEach(metric=>{
+    const item=document.createElement("div");
+    item.className="steward-radar-metric";
+    const head=document.createElement("div");
+    const label=document.createElement("span");
+    label.textContent=metric.label;
+    const value=document.createElement("strong");
+    value.textContent=metric.value+"%";
+    head.append(label,value);
+    const detail=document.createElement("small");
+    detail.textContent=metric.detail;
+    item.append(head,detail);
+    legend.appendChild(item);
+  });
+}
+
+function stewardLeafPath(){
+  return [
+    "M 0 -38",
+    "L 8 -21","L 19 -30","L 17 -14",
+    "L 35 -19","L 25 -5","L 41 -2",
+    "L 24 7","L 31 21","L 11 15",
+    "L 8 36","L 0 25","L -8 36","L -11 15",
+    "L -31 21","L -24 7","L -41 -2",
+    "L -25 -5","L -35 -19","L -17 -14",
+    "L -19 -30","L -8 -21","Z"
+  ].join(" ");
+}
+
+function renderStewardLeafDetail(group){
+  const root=$("stewardLeafDetail");
+  root.replaceChildren();
+  if(!group){
+    root.textContent="悬停或点击叶片查看仓库、规则与证据。";
+    return;
+  }
+
+  const top=document.createElement("div");
+  top.className="steward-leaf-detail-head";
+  const badge=document.createElement("span");
+  badge.className="steward-severity leaf-"+group.severity.toLowerCase();
+  badge.textContent=group.severity;
+  const title=document.createElement("strong");
+  title.textContent=stewardRepoShort(group.repo)+" · "+stewardRuleLabel(group.rule);
+  top.append(badge,title);
+
+  const body=document.createElement("p");
+  body.textContent=group.ref+" · 合并 "+group.count+" 条 Finding · "+stewardHumanMessage(group.first);
+  root.append(top,body);
+
+  if(group.evidence.length){
+    const link=document.createElement("a");
+    link.href=group.evidence[0];
+    link.target="_blank";
+    link.rel="noopener noreferrer";
+    link.textContent="查看首条证据";
+    root.appendChild(link);
+  }
+}
+
+function renderStewardLeaf(findings){
+  const root=$("stewardLeafChart");
+  const meta=$("stewardLeafMeta");
+  root.replaceChildren();
+
+  const raw=Array.isArray(findings)?findings:[];
+  const groups=stewardGroupFindings(raw);
+  meta.textContent=groups.length+" 组 · "+raw.length+" 条 Finding";
+  renderStewardLeafDetail(null);
+
+  if(!groups.length){
+    const empty=document.createElement("div");
+    empty.className="steward-empty-state";
+    empty.textContent="当前没有问题组。";
+    root.appendChild(empty);
+    return;
+  }
+
+  const visible=groups.slice(0,12);
+  const positions=[
+    [180,62,0],[120,89,-24],[240,89,24],
+    [82,132,-42],[278,132,42],[132,145,-12],[228,145,12],
+    [66,190,-55],[294,190,55],[122,208,-25],[238,208,25],[180,229,0]
+  ];
+  const svg=stewardSvg("svg",{
+    viewBox:"0 0 360 300",
+    role:"img",
+    "aria-label":"问题枫叶图"
+  });
+
+  svg.appendChild(stewardSvg("path",{
+    d:"M180 286 C176 239 184 185 180 101",
+    class:"steward-leaf-stem"
+  }));
+
+  positions.slice(0,visible.length).forEach((position,index)=>{
+    const [x,y]=position;
+    const branchY=Math.max(108,Math.min(252,y+42));
+    svg.appendChild(stewardSvg("path",{
+      d:"M180 "+branchY+" Q "+((180+x)/2)+" "+(branchY-12)+" "+x+" "+(y+8),
+      class:"steward-leaf-branch"
+    }));
+  });
+
+  visible.forEach((group,index)=>{
+    const [x,y,rotation]=positions[index];
+    const scale=0.56+Math.min(0.42,Math.max(0,group.count-1)*0.11);
+    const leaf=stewardSvg("g",{
+      transform:"translate("+x+" "+y+") rotate("+rotation+") scale("+scale+")",
+      class:"steward-maple-leaf severity-"+group.severity.toLowerCase(),
+      tabindex:"0",
+      role:"button",
+      "aria-label":group.severity+" "+stewardRepoShort(group.repo)+" "+stewardRuleLabel(group.rule)+" "+group.count+" 条"
+    });
+    leaf.appendChild(stewardSvg("path",{d:stewardLeafPath(),class:"steward-maple-shape"}));
+    leaf.appendChild(stewardSvg("line",{x1:0,y1:22,x2:0,y2:48,class:"steward-maple-vein"}));
+    leaf.appendChild(stewardSvg("title",{},
+      group.severity+" · "+group.repo+" / "+group.ref+" · "+stewardRuleLabel(group.rule)+" ×"+group.count
+    ));
+    const activate=()=>renderStewardLeafDetail(group);
+    leaf.addEventListener("mouseenter",activate);
+    leaf.addEventListener("focus",activate);
+    leaf.addEventListener("click",activate);
+    svg.appendChild(leaf);
+
+    const count=stewardSvg("text",{
+      x:x,y:y+4,class:"steward-maple-count",
+      "text-anchor":"middle","dominant-baseline":"middle"
+    },String(group.count));
+    svg.appendChild(count);
+  });
+
+  svg.appendChild(stewardSvg("text",{
+    x:180,y:282,class:"steward-leaf-root-label","text-anchor":"middle"
+  },"本轮问题组"));
+
+  root.appendChild(svg);
+
+  if(groups.length>visible.length){
+    const more=document.createElement("div");
+    more.className="steward-leaf-more";
+    more.textContent="图中优先显示前 "+visible.length+" 组；另有 "+(groups.length-visible.length)+" 组可在“本轮问题”查看。";
+    root.appendChild(more);
+  }
+}
+
 function renderStewardOverview(value,findings,targets){
   const latest=value?.latest&&typeof value.latest==="object"?value.latest:null;
   const title=$("stewardOverallTitle");
@@ -1589,6 +1904,7 @@ function renderStewardTrend(rows){
   const axis=$("stewardTrendAxis");
   root.replaceChildren();
   const data=stewardTrendData(rows);
+
   if(!data.length){
     root.textContent="暂无历史趋势；首个巡检快照写入后会自动出现。";
     summary.textContent="等待历史快照";
@@ -1602,14 +1918,14 @@ function renderStewardTrend(rows){
     return;
   }
 
-  const latest=data[data.length-1];
-  const previous=data.length>=2?data[data.length-2]:null;
-  const latestTotal=stewardNumber(latest?.findings_count)
-    ||stewardNumber(latest?.p0)+stewardNumber(latest?.p1)+stewardNumber(latest?.p2);
-  const previousTotal=previous
-    ?stewardNumber(previous?.findings_count)
-      ||stewardNumber(previous?.p0)+stewardNumber(previous?.p1)+stewardNumber(previous?.p2)
-    :null;
+  const totals=data.map(row=>
+    stewardNumber(row?.findings_count)
+    ||stewardNumber(row?.p0)+stewardNumber(row?.p1)+stewardNumber(row?.p2)
+  );
+  const highs=data.map(row=>stewardNumber(row?.p0)+stewardNumber(row?.p1));
+  const p2s=data.map(row=>stewardNumber(row?.p2));
+  const latestTotal=totals[totals.length-1];
+  const previousTotal=totals.length>=2?totals[totals.length-2]:null;
   const delta=previousTotal===null?null:latestTotal-previousTotal;
 
   summary.textContent=data.length+" 次巡检 · 最新 "+latestTotal+" 项"
@@ -1617,41 +1933,70 @@ function renderStewardTrend(rows){
   foldMeta.textContent=data.length+" 次 · 最新 "+latestTotal+" 项"
     +(delta===null?"":delta<0?" · 改善 "+Math.abs(delta):delta>0?" · 增加 "+delta:" · 持平");
 
-  const maxTotal=Math.max(1,...data.map(row=>
-    stewardNumber(row?.p0)+stewardNumber(row?.p1)+stewardNumber(row?.p2)
-  ));
-  for(const row of data){
-    const total=stewardNumber(row?.p0)+stewardNumber(row?.p1)+stewardNumber(row?.p2);
-    const column=document.createElement("div");
-    column.className="steward-trend-column";
-    column.title=[
-      stewardFormatDateTime(row?.generated_at),
-      "总告警 "+String(stewardNumber(row?.findings_count)||total),
-      "P0 "+stewardNumber(row?.p0),
-      "P1 "+stewardNumber(row?.p1),
-      "P2 "+stewardNumber(row?.p2),
-      "覆盖 "+stewardCoverageLabel(row?.coverage)
-    ].join(" · ");
-    const stack=document.createElement("div");
-    stack.className="steward-trend-stack";
-    const height=Math.max(4,Math.round((total/maxTotal)*100));
-    stack.style.height=height+"%";
-    for(const severity of ["p0","p1","p2"]){
-      const value=stewardNumber(row?.[severity]);
-      if(!value)continue;
-      const segment=document.createElement("span");
-      segment.className="steward-trend-segment "+severity;
-      segment.style.flex=String(value);
-      stack.appendChild(segment);
-    }
-    if(!stack.childNodes.length){
-      const empty=document.createElement("span");
-      empty.className="steward-trend-segment empty";
-      stack.appendChild(empty);
-    }
-    column.appendChild(stack);
-    root.appendChild(column);
+  const width=680;
+  const height=236;
+  const pad={left:34,right:18,top:18,bottom:28};
+  const chartW=width-pad.left-pad.right;
+  const chartH=height-pad.top-pad.bottom;
+  const maxValue=Math.max(1,...totals,...highs,...p2s);
+  const xFor=index=>pad.left+(data.length===1?chartW/2:index*chartW/(data.length-1));
+  const yFor=value=>pad.top+chartH-(Number(value)||0)*chartH/maxValue;
+  const pointsFor=values=>values.map((value,index)=>
+    xFor(index).toFixed(1)+","+yFor(value).toFixed(1)
+  ).join(" ");
+
+  const svg=stewardSvg("svg",{
+    viewBox:"0 0 "+width+" "+height,
+    role:"img",
+    "aria-label":"历史巡检趋势折线图"
+  });
+
+  for(let step=0;step<=4;step+=1){
+    const value=maxValue*step/4;
+    const y=yFor(value);
+    svg.appendChild(stewardSvg("line",{
+      x1:pad.left,y1:y,x2:width-pad.right,y2:y,class:"steward-line-grid"
+    }));
+    svg.appendChild(stewardSvg("text",{
+      x:pad.left-7,y:y+3,class:"steward-line-axis-label","text-anchor":"end"
+    },String(Math.round(value))));
   }
+
+  const areaPoints=[
+    pad.left+","+(pad.top+chartH),
+    pointsFor(totals),
+    (width-pad.right)+","+(pad.top+chartH)
+  ].join(" ");
+  svg.appendChild(stewardSvg("polygon",{points:areaPoints,class:"steward-line-area"}));
+
+  const series=[
+    {values:totals,className:"total",label:"总问题"},
+    {values:highs,className:"high",label:"P0+P1"},
+    {values:p2s,className:"p2",label:"P2"}
+  ];
+  series.forEach(seriesItem=>{
+    svg.appendChild(stewardSvg("polyline",{
+      points:pointsFor(seriesItem.values),
+      class:"steward-line-series "+seriesItem.className
+    }));
+  });
+
+  data.forEach((row,index)=>{
+    const x=xFor(index);
+    series.forEach(seriesItem=>{
+      const value=seriesItem.values[index];
+      const dot=stewardSvg("circle",{
+        cx:x,cy:yFor(value),r:seriesItem.className==="total"?3.5:2.7,
+        class:"steward-line-dot "+seriesItem.className
+      });
+      dot.appendChild(stewardSvg("title",{},
+        stewardFormatDateTime(row.generated_at)+" · "+seriesItem.label+" "+value
+      ));
+      svg.appendChild(dot);
+    });
+  });
+
+  root.appendChild(svg);
 
   axis.replaceChildren();
   const startLabel=document.createElement("span");
@@ -1926,9 +2271,9 @@ function renderStewardMatrix(targets,findings){
     p0.textContent=String(counts.P0);
     p1.textContent=String(counts.P1);
     p2.textContent=String(counts.P2);
-    if(counts.P0)p0.className="risk-count";
-    if(counts.P1)p1.className="risk-count";
-    if(counts.P2)p2.className="risk-count";
+    p0.className="steward-heat-cell p0 heat-"+String(Math.min(3,counts.P0));
+    p1.className="steward-heat-cell p1 heat-"+String(Math.min(3,counts.P1));
+    p2.className="steward-heat-cell p2 heat-"+String(Math.min(3,counts.P2));
 
     const commitCell=document.createElement("span");
     const commit=String(target?.commit||"");
@@ -1999,6 +2344,8 @@ function renderStewardDashboard(value){
     $("stewardDashboardStatus").textContent="巡检快照读取成功。";
   }
 
+  renderStewardRadar(latest,findings,targets);
+  renderStewardLeaf(findings);
   renderStewardRecommendations(findings,targets);
   renderStewardTrend(value?.trend||[]);
   renderStewardFindings(findings);
