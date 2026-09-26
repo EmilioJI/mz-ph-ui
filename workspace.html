@@ -174,10 +174,13 @@
 
     <section id="stewardDashboard" class="card steward-dashboard hidden">
       <div class="section-title steward-dashboard-title">
-        <div>
-          <div class="eyebrow">Engineering Control Tower</div>
-          <h2>Dev Steward 巡检台</h2>
-          <p class="muted">把最近一次巡检结论、风险、证据和下一步动作集中在一页。数据仅在授权运维会话中读取。</p>
+        <div class="steward-title-lockup">
+          <span class="steward-seal" aria-hidden="true">巡</span>
+          <div>
+            <div class="eyebrow">工程巡检 · 运维总览</div>
+            <h2>Dev Steward 巡检台</h2>
+            <p class="muted">先看结论，再看动作；需要时再展开证据与仓库明细。</p>
+          </div>
         </div>
         <div class="steward-heading-badges">
           <span id="stewardFreshnessBadge" class="badge steward-freshness">等待数据</span>
@@ -191,8 +194,16 @@
           <button class="ghost steward-range-btn active" type="button" data-steward-days="30">30 天</button>
           <button class="ghost steward-range-btn" type="button" data-steward-days="90">90 天</button>
         </div>
-        <button id="stewardRefreshBtn" class="secondary" type="button">刷新巡检台</button>
+        <button id="stewardRefreshBtn" class="secondary" type="button">刷新</button>
       </div>
+
+      <nav id="stewardNav" class="steward-subnav top-gap" aria-label="巡检台导航">
+        <button class="steward-nav-btn active" type="button" data-steward-scroll="stewardOverview">总览</button>
+        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardRecommendationsPanel">建议</button>
+        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardFindingsPanel">问题</button>
+        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardTrendPanel">趋势</button>
+        <button class="steward-nav-btn" type="button" data-steward-scroll="stewardMatrixPanel">仓库</button>
+      </nav>
 
       <section id="stewardOverview" class="steward-overview top-gap" aria-live="polite">
         <div class="steward-overview-primary">
@@ -210,61 +221,72 @@
         <span class="steward-delta-chip">暂无上一轮对比</span>
       </div>
 
-      <div id="stewardKpis" class="steward-kpi-grid top-gap">
-        <div class="steward-kpi"><span>观察目标</span><strong id="stewardKpiTargets">-</strong><small>repository / ref</small></div>
-        <div class="steward-kpi"><span>已观测</span><strong id="stewardKpiObserved">-</strong><small>其余为部分 / 未知</small></div>
-        <div class="steward-kpi risk-p0"><span>P0 · 紧急</span><strong id="stewardKpiP0">-</strong><small>需要立即处理</small></div>
+      <div id="stewardKpis" class="steward-kpi-grid steward-kpi-grid-compact top-gap">
+        <div class="steward-kpi"><span>覆盖</span><strong id="stewardKpiObserved">-</strong><small>已观测 / 总目标</small></div>
+        <div class="steward-kpi risk-p0"><span>P0 · 紧急</span><strong id="stewardKpiP0">-</strong><small>立即处理</small></div>
         <div class="steward-kpi risk-p1"><span>P1 · 重要</span><strong id="stewardKpiP1">-</strong><small>优先处理</small></div>
-        <div class="steward-kpi risk-p2"><span>P2 · 观察</span><strong id="stewardKpiP2">-</strong><small>跟踪或择机处理</small></div>
-        <div class="steward-kpi"><span>本轮告警</span><strong id="stewardKpiFindings">-</strong><small>原始 finding 数</small></div>
+        <div class="steward-kpi risk-p2"><span>P2 · 观察</span><strong id="stewardKpiP2">-</strong><small>持续跟踪</small></div>
       </div>
 
-      <div id="stewardDashboardStatus" class="status top-gap">尚未加载巡检数据</div>
+      <div id="stewardDashboardStatus" class="steward-inline-status top-gap">尚未加载巡检数据</div>
 
-      <section class="steward-panel steward-actions-panel top-gap">
+      <section id="stewardRecommendationsPanel" class="steward-panel steward-actions-panel top-gap">
         <div class="section-title compact">
           <div>
             <h3>下一步建议</h3>
-            <p class="field-note">基于本轮规则结果生成，不会自动修改业务仓库</p>
+            <p class="field-note">只给最值得先做的动作，不自动修改业务仓库</p>
           </div>
         </div>
         <div id="stewardRecommendations" class="steward-recommendations">尚未加载</div>
       </section>
 
-      <div class="steward-panel-grid top-gap">
-        <section class="steward-panel">
-          <div class="section-title compact">
-            <div><h3>风险趋势</h3><p id="stewardTrendSummary" class="field-note">等待历史快照</p></div>
+      <section id="stewardFindingsPanel" class="steward-panel top-gap">
+        <div class="section-title compact steward-findings-title">
+          <div>
+            <h3>本轮问题</h3>
+            <p class="field-note">默认只看 P0 / P1；展开条目可查看建议和证据</p>
           </div>
-          <div id="stewardTrendChart" class="steward-trend-chart" aria-label="巡检风险趋势"></div>
-          <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
-          <div class="steward-legend"><span>P0</span><span>P1</span><span>P2</span></div>
-        </section>
-
-        <section class="steward-panel">
-          <div class="section-title compact steward-findings-title">
-            <div><h3>本轮问题</h3><p class="field-note">相同仓库 / Ref / 规则会合并显示，减少重复噪声</p></div>
-          </div>
-          <div id="stewardFindingFilters" class="steward-finding-filters" aria-label="问题严重度筛选">
-            <button class="ghost steward-filter-btn active" type="button" data-steward-severity="ALL">全部</button>
-            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P0">P0</button>
-            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P1">P1</button>
-            <button class="ghost steward-filter-btn" type="button" data-steward-severity="P2">P2</button>
-          </div>
-          <div id="stewardFindings" class="steward-findings">尚未加载</div>
-        </section>
-      </div>
-
-      <section class="steward-panel top-gap">
-        <div class="section-title compact">
-          <div><h3>项目健康矩阵</h3><p class="field-note">高优先级问题与部分覆盖项优先显示；Commit 可直接跳转 GitHub</p></div>
         </div>
-        <div id="stewardMatrix" class="steward-matrix">尚未加载</div>
+        <div id="stewardFindingFilters" class="steward-finding-filters" aria-label="问题严重度筛选">
+          <button class="ghost steward-filter-btn active" type="button" data-steward-severity="ACTIONABLE">待处理</button>
+          <button class="ghost steward-filter-btn" type="button" data-steward-severity="ALL">全部</button>
+          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P0">P0</button>
+          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P1">P1</button>
+          <button class="ghost steward-filter-btn" type="button" data-steward-severity="P2">P2</button>
+        </div>
+        <div id="stewardFindings" class="steward-findings">尚未加载</div>
       </section>
 
-      <details class="steward-limitations top-gap">
-        <summary id="stewardLimitationsSummary">证据边界与未覆盖能力</summary>
-        <div id="stewardLimitations" class="audit-list top-gap">尚未加载</div>
+      <details id="stewardTrendPanel" class="steward-fold top-gap">
+        <summary>
+          <span>历史趋势</span>
+          <span id="stewardTrendFoldMeta" class="steward-fold-meta">等待历史快照</span>
+        </summary>
+        <div class="steward-fold-body">
+          <div id="stewardTrendChart" class="steward-trend-chart" aria-label="巡检风险趋势"></div>
+          <div id="stewardTrendAxis" class="steward-trend-axis"><span>-</span><span>-</span></div>
+          <div class="steward-trend-footer">
+            <span id="stewardTrendSummary" class="field-note">等待历史快照</span>
+            <div class="steward-legend"><span>P0</span><span>P1</span><span>P2</span></div>
+          </div>
+        </div>
+      </details>
+
+      <details id="stewardMatrixPanel" class="steward-fold top-gap">
+        <summary>
+          <span>仓库明细</span>
+          <span id="stewardMatrixSummary" class="steward-fold-meta">等待数据</span>
+        </summary>
+        <div class="steward-fold-body">
+          <div id="stewardMatrix" class="steward-matrix">尚未加载</div>
+        </div>
+      </details>
+
+      <details class="steward-limitations steward-fold top-gap">
+        <summary>
+          <span id="stewardLimitationsSummary">证据边界与未覆盖能力</span>
+        </summary>
+        <div id="stewardLimitations" class="audit-list steward-fold-body">尚未加载</div>
       </details>
     </section>
 
