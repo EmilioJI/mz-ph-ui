@@ -13,7 +13,11 @@ window.name = "";
 const BASE="https://ftcyyvyoowkctbupzkct.supabase.co";
 const PUB="sb_publishable_vsp2sdBNKkqGh97lTvJRFg_Bmk7fNdO";
 const FN=BASE+"/functions/v1/p2-ai-provider-admin";
+const OPS_REFRESH_STORAGE_KEY="mz_ops_refresh_token";
+const OPS_SESSION_STARTED_STORAGE_KEY="mz_ops_session_started_at";
+const OPS_SESSION_MAX_AGE_MS=8*60*60*1000;
 let token="";
+let operationsRefreshPromise=null;
 let keyStates={};
 let decisionKeyConfigured=false;
 let opsAuthStatus=null;
@@ -465,6 +469,7 @@ function consumePasswordSetupCallback(){
   const accessToken=params.get("access_token")||"";
   if(!accessToken||!(type==="invite"||type==="recovery"))return false;
 
+  clearOperationsSessionStorage();
   passwordSetupMode=type;
   token=accessToken;
   history.replaceState(null,"",window.location.pathname+window.location.search);
@@ -538,7 +543,111 @@ function setAuthenticated(authenticated){
   setAuthStage(authenticated?"console":"login");
 }
 
-async function authApi(path,method="GET",body=null){
+function clearOperationsSessionStorage(){
+  sessionStorage.removeItem(OPS_REFRESH_STORAGE_KEY);
+  sessionStorage.removeItem(OPS_SESSION_STARTED_STORAGE_KEY);
+}
+
+function readOperationsRefreshToken(){
+  const refreshToken=String(sessionStorage.getItem(OPS_REFRESH_STORAGE_KEY)||"").trim();
+  const startedAt=Number(sessionStorage.getItem(OPS_SESSION_STARTED_STORAGE_KEY)||0);
+  if(!refreshToken||!Number.isFinite(startedAt)||startedAt<=0){
+    clearOperationsSessionStorage();
+    return "";
+  }
+  if(Date.now()-startedAt>OPS_SESSION_MAX_AGE_MS){
+    clearOperationsSessionStorage();
+    return "";
+  }
+  return refreshToken;
+}
+
+function persistOperationsRefreshToken(value,{resetAge=false}={}){
+  const refreshToken=String(value||"").trim();
+  if(!refreshToken)return;
+  sessionStorage.setItem(OPS_REFRESH_STORAGE_KEY,refreshToken);
+  const currentStartedAt=Number(sessionStorage.getItem(OPS_SESSION_STARTED_STORAGE_KEY)||0);
+  if(resetAge||!Number.isFinite(currentStartedAt)||currentStartedAt<=0){
+    sessionStorage.setItem(OPS_SESSION_STARTED_STORAGE_KEY,String(Date.now()));
+  }
+}
+
+function acceptOperationsAuthSession(value,{resetAge=false}={}){
+  const accessToken=String(value?.access_token||value?.session?.access_token||"").trim();
+  const refreshToken=String(value?.refresh_token||value?.session?.refresh_token||"").trim();
+  if(!accessToken)return false;
+  token=accessToken;
+  if(refreshToken)persistOperationsRefreshToken(refreshToken,{resetAge});
+  return true;
+}
+
+async function performOperationsRefresh(){
+  const refreshToken=readOperationsRefreshToken();
+  if(!refreshToken)return false;
+
+  const response=await fetch(BASE+"/auth/v1/token?grant_type=refresh_token",{
+    method:"POST",
+    headers:{
+      apikey:PUB,
+      "Content-Type":"application/json",
+      "Accept":"application/json"
+    },
+    body:JSON.stringify({refresh_token:refreshToken})
+  });
+
+  let value={};
+  try{value=await response.json()}catch(_e){}
+  if(!response.ok){
+    if(response.status===400||response.status===401||response.status===403){
+      clearOperationsSessionStorage();
+      token="";
+    }
+    return false;
+  }
+  if(!acceptOperationsAuthSession(value)){
+    clearOperationsSessionStorage();
+    token="";
+    return false;
+  }
+  return true;
+}
+
+async function refreshAccessTokenFromStoredSession(){
+  if(operationsRefreshPromise)return operationsRefreshPromise;
+  operationsRefreshPromise=performOperationsRefresh()
+    .finally(()=>{operationsRefreshPromise=null;});
+  return operationsRefreshPromise;
+}
+
+async function restoreOperationsSession(){
+  if(!readOperationsRefreshToken())return false;
+  const button=$("loginBtn");
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent="恢复安全会话中…";
+  try{
+    const refreshed=await refreshAccessTokenFromStoredSession();
+    if(!refreshed)return false;
+    await bootstrapAuthenticatedSession();
+    return true;
+  }catch(error){
+    if(
+      error?.code==="AUTH_REQUIRED"||
+      error?.code==="ACCESS_DENIED"||
+      error?.status===401||
+      error?.status===403
+    ){
+      clearOperationsSessionStorage();
+      clearSensitiveBrowserState();
+    }
+    throw error;
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
+async function authApi(path,method="GET",body=null,retry=true){
   const response=await fetch(BASE+path,{
     method,
     headers:{
@@ -551,7 +660,15 @@ async function authApi(path,method="GET",body=null){
   });
   let value={};
   try{value=await response.json()}catch(_e){}
+  if(response.status===401&&retry){
+    const refreshed=await refreshAccessTokenFromStoredSession();
+    if(refreshed)return authApi(path,method,body,false);
+  }
   if(!response.ok){
+    if(response.status===401){
+      clearOperationsSessionStorage();
+      token="";
+    }
     const error=new Error(value?.msg||value?.message||value?.error_description||value?.error||"认证请求失败");
     error.status=response.status;
     throw error;
@@ -1963,7 +2080,7 @@ function applyOpsStatus(status){
   renderProjectSelection();
 }
 
-async function api(action,method="GET",body=null,query={}){
+async function api(action,method="GET",body=null,query={},retry=true){
   const params=new URLSearchParams({action:String(action||"")});
   for(const [key,value] of Object.entries(query||{})){
     if(value!==undefined&&value!==null&&String(value)!=="")params.set(key,String(value));
@@ -1978,11 +2095,17 @@ async function api(action,method="GET",body=null,query={}){
   });
   let value={};
   try{value=await response.json()}catch(_e){}
+  if(response.status===401&&retry){
+    const refreshed=await refreshAccessTokenFromStoredSession();
+    if(refreshed)return api(action,method,body,query,false);
+  }
   if(response.status===401){
-      token="";
+    clearOperationsSessionStorage();
+    token="";
     setAuthStage("login");
     const error=new Error("身份验证失败或会话已失效");
     error.code="AUTH_REQUIRED";
+    error.status=401;
     throw error;
   }
   if(!response.ok){
@@ -2084,10 +2207,9 @@ async function verifyMfa(){
       "POST",
       {challenge_id:challenge.id,code}
     );
-    const elevatedToken=verified?.access_token||verified?.session?.access_token||"";
-    if(!elevatedToken)throw new Error("MFA 验证成功但未返回安全会话");
-
-    token=elevatedToken;
+    if(!acceptOperationsAuthSession(verified)){
+      throw new Error("MFA 验证成功但未返回安全会话");
+    }
     const status=await api("auth_status");
     if(status.aal!=="aal2")throw new Error("安全会话未提升到 aal2");
 
@@ -2536,9 +2658,16 @@ async function signIn(){
     });
     const value=await response.json();
     $("password").value="";
-    if(!response.ok||!value.access_token)throw new Error("账号或密码验证失败");
-    token=value.access_token;
+    if(!response.ok||!acceptOperationsAuthSession(value,{resetAge:true})){
+      throw new Error("账号或密码验证失败");
+    }
     await bootstrapAuthenticatedSession();
+  }catch(error){
+    if(error?.code==="AUTH_REQUIRED"||error?.code==="ACCESS_DENIED"){
+      clearOperationsSessionStorage();
+      clearSensitiveBrowserState();
+    }
+    throw error;
   }finally{
     button.disabled=false;
     button.textContent=original;
@@ -2597,6 +2726,8 @@ window.addEventListener("pageshow",event=>{
 });
 
 function logout(){
+  const accessToken=token;
+  clearOperationsSessionStorage();
   clearSensitiveBrowserState();
   opsAuthStatus=null;
   opsMemberships=[];
@@ -2605,6 +2736,14 @@ function logout(){
   passwordSetupMode="";
   backupTotpFactorId="";
   setAuthStage("login");
+
+  if(accessToken){
+    fetch(BASE+"/auth/v1/logout",{
+      method:"POST",
+      headers:{apikey:PUB,Authorization:"Bearer "+accessToken},
+      keepalive:true
+    }).catch(()=>{});
+  }
 }
 
 document.querySelectorAll("[data-preset]").forEach(
@@ -2763,16 +2902,32 @@ $("backupTotpCopyBtn").addEventListener("click",async()=>{
 $("logoutBtn").addEventListener("click",logout);
 $("opsLogoutBtn").addEventListener("click",logout);
 
-if(consumePasswordSetupCallback()){
-  preparePasswordSetup();
-}else if(token){
-  bootstrapAuthenticatedSession().catch(error=>{
-    alert(error.message);
-    logout();
-  });
-}else{
-  setAuthStage("login");
+async function initializeOperationsSession(){
+  if(consumePasswordSetupCallback()){
+    await preparePasswordSetup();
+    return;
+  }
+  if(token){
+    await bootstrapAuthenticatedSession();
+    return;
+  }
+  const restored=await restoreOperationsSession();
+  if(!restored)setAuthStage("login");
 }
+
+initializeOperationsSession().catch(error=>{
+  clearSensitiveBrowserState();
+  if(
+    error?.code==="AUTH_REQUIRED"||
+    error?.code==="ACCESS_DENIED"||
+    error?.status===401||
+    error?.status===403
+  ){
+    clearOperationsSessionStorage();
+  }
+  setAuthStage("login");
+  console.warn("Operations session restore failed:",error?.message||error);
+});
 
 
 $("stewardRefreshBtn").addEventListener("click",()=>loadStewardDashboard(stewardDashboardDays).catch(error=>{
