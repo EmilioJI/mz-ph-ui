@@ -6,6 +6,12 @@
 
   const params=new URLSearchParams(hash.slice(1));
   const type=String(params.get("type")||"").toLowerCase();
+  const authError=params.get("error_description")||params.get("error");
+  if(authError){
+    window.location.replace("./account.html"+hash);
+    return;
+  }
+
   const accessToken=params.get("access_token")||"";
   if(!accessToken)return;
 
