@@ -21,7 +21,7 @@ let currentMfaFactors=[];
 function clearAccountSessionMemory(){
   accessToken="";
   callbackType="";
-  for(const id of ["password","newPassword","confirmPassword","accountMfaCode"]){
+  for(const id of ["recoveryCode","resetPassword","resetPasswordConfirm","accountMfaCode"]){
     const node=$(id);
     if(node&&"value" in node)node.value="";
   }
@@ -57,6 +57,7 @@ function safeAuthError(value,fallback){
   if(code==="over_request_rate_limit"||code==="over_email_send_rate_limit")return "请求过于频繁，请稍后再试。";
   if(code==="weak_password")return "密码强度不足，请更换更强的密码。";
   if(code==="same_password")return "新密码不能与当前密码相同，请换一个新密码。";
+  if(code==="otp_expired")return "验证码无效或已过期，请重新获取。";
   return fallback;
 }
 
@@ -322,11 +323,48 @@ async function requestRecovery(){
       method:"POST",
       body:{email}
     });
+    $("recoveryCode").value="";
     setStatus(
       "recoveryStatus",
-      "如果该邮箱已注册，密码重置邮件已发送。请检查收件箱和垃圾邮件。",
+      "如果该邮箱已注册，6 位验证码已发送。请检查收件箱、垃圾邮件或企业邮箱隔离区。",
       "ok"
     );
+    $("recoveryCode").focus();
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
+async function verifyRecoveryCode(){
+  const email=$("recoveryEmail").value.trim();
+  const token=$("recoveryCode").value.replace(/\s+/g,"").trim();
+  if(!validEmail(email))throw new Error("请输入有效邮箱地址。");
+  if(!/^\d{6}$/.test(token))throw new Error("请输入邮件中的 6 位验证码。");
+
+  const button=$("recoveryVerifyBtn");
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="验证中…";
+  setStatus("recoveryStatus","正在验证验证码…");
+  try{
+    const value=await request("/auth/v1/verify",{
+      method:"POST",
+      body:{type:"recovery",email,token}
+    });
+    if(!value?.access_token)throw new Error("验证码验证成功，但未取得安全会话。");
+    accessToken=value.access_token;
+    callbackType="recovery";
+    $("recoveryCode").value="";
+    const user=value.user||await loadCurrentUser(accessToken);
+    $("resetIntro").textContent="验证码已验证。请设置新的登录密码。";
+    $("resetTitle").textContent="设置新密码";
+    setStatus("resetStatus","已验证："+String(user?.email||email),"ok");
+    setStage("reset");
+    $("resetPassword").focus();
+  }catch(error){
+    setStatus("recoveryStatus",error.message,"bad");
+    throw error;
   }finally{
     button.disabled=false;
     button.textContent=original;
@@ -336,7 +374,7 @@ async function requestRecovery(){
 async function completeReset(){
   const password=$("resetPassword").value;
   const confirm=$("resetPasswordConfirm").value;
-  if(!accessToken)throw new Error("安全链接已失效，请重新申请密码重置邮件。");
+  if(!accessToken)throw new Error("验证码尚未验证或会话已失效，请重新获取验证码。");
   if(!validPassword(password))throw new Error("密码至少 8 位，并同时包含字母和数字。");
   if(password!==confirm)throw new Error("两次输入的密码不一致。");
 
@@ -458,6 +496,7 @@ $("loginBtn").addEventListener("click",()=>signIn().catch(()=>{}));
 $("registerBtn").addEventListener("click",()=>register().catch(error=>setStatus("registerStatus",error.message,"bad")));
 $("resendBtn").addEventListener("click",()=>resendConfirmation().catch(error=>setStatus("registerStatus",error.message,"bad")));
 $("recoveryBtn").addEventListener("click",()=>requestRecovery().catch(error=>setStatus("recoveryStatus",error.message,"bad")));
+$("recoveryVerifyBtn").addEventListener("click",()=>verifyRecoveryCode().catch(()=>{}));
 $("resetBtn").addEventListener("click",()=>completeReset().catch(()=>{}));
 
 $("loginPassword").addEventListener("keydown",event=>{
@@ -468,6 +507,9 @@ $("registerPasswordConfirm").addEventListener("keydown",event=>{
 });
 $("recoveryEmail").addEventListener("keydown",event=>{
   if(event.key==="Enter")requestRecovery().catch(error=>setStatus("recoveryStatus",error.message,"bad"));
+});
+$("recoveryCode").addEventListener("keydown",event=>{
+  if(event.key==="Enter")verifyRecoveryCode().catch(()=>{});
 });
 $("resetPasswordConfirm").addEventListener("keydown",event=>{
   if(event.key==="Enter")completeReset().catch(()=>{});
