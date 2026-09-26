@@ -79,14 +79,24 @@
 
     <section id="recoveryStage" class="card auth-card hidden">
       <h2>找回密码</h2>
-      <p class="muted">输入账号邮箱。若账号存在，我们会发送密码重置邮件。</p>
-      <div class="top-gap">
-        <label for="recoveryEmail">邮箱</label>
-        <input id="recoveryEmail" type="email" autocomplete="email" inputmode="email">
+      <p class="muted">输入账号邮箱获取 6 位验证码。验证码验证成功后，再设置新的登录密码。</p>
+      <div class="grid top-gap">
+        <div class="full">
+          <label for="recoveryEmail">邮箱</label>
+          <input id="recoveryEmail" type="email" autocomplete="email" inputmode="email">
+        </div>
+        <div class="full">
+          <label for="recoveryCode">6 位验证码</label>
+          <input id="recoveryCode" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="6" placeholder="000000">
+        </div>
       </div>
       <div class="row top-gap">
-        <button id="recoveryBtn" type="button">发送重置邮件</button>
+        <button id="recoveryBtn" type="button">发送验证码</button>
+        <button id="recoveryVerifyBtn" class="secondary" type="button">验证验证码</button>
         <button id="recoveryBackBtn" class="ghost" type="button">返回登录</button>
+      </div>
+      <div class="policy-note top-gap">
+        请在此页面手动输入邮件中的验证码。邮件里的普通账号中心链接不会自动完成密码重置。
       </div>
       <div id="recoveryStatus" class="status top-gap hidden"></div>
     </section>

@@ -552,6 +552,8 @@ jobs:
               'id="loginStage"',
               'id="registerStage"',
               'id="recoveryStage"',
+              'id="recoveryCode"',
+              'id="recoveryVerifyBtn"',
               'id="resetStage"',
               'id="signedInStage"',
           ):
@@ -568,6 +570,9 @@ jobs:
               '/verify',
               'renderMfaSecurity',
               'removeSelectedMfa',
+              'verifyRecoveryCode',
+              'body:{type:"recovery",email,token}',
+              '验证码已验证。请设置新的登录密码。',
               'code==="same_password"',
               'errorCode==="otp_expired"',
               '新密码不能与当前密码相同，请换一个新密码。',
