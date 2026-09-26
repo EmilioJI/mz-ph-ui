@@ -539,7 +539,7 @@ jobs:
           if './entry.js' not in root:
               raise SystemExit("public root invite callback router missing")
           for marker in (
-              'type==="recovery"',
+              '["recovery","signup","email","magiclink"].includes(type)',
               'params.get("error_description")',
               'window.location.replace("./account.html"+hash)',
           ):
@@ -570,8 +570,8 @@ jobs:
               'removeSelectedMfa',
               'code==="same_password"',
               'errorCode==="otp_expired"',
-              '?????????????????????',
-              '???????????????????????????',
+              '新密码不能与当前密码相同，请换一个新密码。',
+              '密码重置链接已被使用或已过期，请重新申请密码重置邮件。',
           ):
               if marker not in account_js:
                   raise SystemExit("ordinary account auth contract missing: " + marker)
