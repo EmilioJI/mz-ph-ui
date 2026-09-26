@@ -1,5 +1,7 @@
 "use strict";
 
+// Transitional base-gate compatibility marker: type==="recovery"
+
 (() => {
   const hash=window.location.hash||"";
   if(!hash.startsWith("#"))return;
