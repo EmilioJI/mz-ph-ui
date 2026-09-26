@@ -1404,3 +1404,16 @@ body.steward-focus-mode footer:not(.steward-footer){display:none}
     stroke-dashoffset:0!important;
   }
 }
+
+.steward-leaf-hub circle{
+  fill:#fffaf2;
+  stroke:#a54a3d;
+  stroke-width:1.6;
+  filter:drop-shadow(0 3px 4px rgba(82,65,48,.14));
+}
+.steward-leaf-hub text{
+  fill:#9c4338;
+  font-family:"Noto Serif SC","Songti SC",serif;
+  font-size:10px;
+  font-weight:900;
+}
