@@ -182,6 +182,7 @@
 
           <nav id="stewardNav" class="steward-side-nav" aria-label="巡检台导航">
             <button class="steward-side-nav-btn active" type="button" data-steward-scroll="stewardOverview">总览</button>
+            <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardDailyProgressPanel">昨日进展</button>
             <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardVisuals">巡检画像</button>
             <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardProjectPanel">项目状态</button>
             <button class="steward-side-nav-btn" type="button" data-steward-scroll="stewardRecommendationsPanel">下一步动作</button>
@@ -267,6 +268,32 @@
             </div>
             <div id="stewardDeltaStrip" class="steward-delta-strip">
               <span class="steward-delta-chip">暂无上一轮对比</span>
+            </div>
+          </section>
+
+          <section id="stewardDailyProgressPanel" class="steward-daily-card">
+            <div class="section-title compact steward-daily-title">
+              <div>
+                <div class="eyebrow">每日复盘</div>
+                <h3>昨日 GitHub 进展</h3>
+                <p class="field-note">北京时间 00:30 汇总前一自然日的 commits、PR / Issue 生命周期、CI 与确定性变更类型。</p>
+              </div>
+              <div class="steward-daily-badges">
+                <span id="stewardDailyDate" class="steward-viz-meta">等待首份日报</span>
+                <span id="stewardDailyCoverage" class="steward-viz-meta">未采集</span>
+              </div>
+            </div>
+
+            <div class="steward-daily-summary">
+              <div class="steward-daily-metric"><span>活跃仓库</span><strong id="stewardDailyActive">-</strong><small>昨天有 GitHub 活动</small></div>
+              <div class="steward-daily-metric"><span>Commits</span><strong id="stewardDailyCommits">-</strong><small>默认分支提交</small></div>
+              <div class="steward-daily-metric"><span>合并 PR</span><strong id="stewardDailyMerged">-</strong><small>昨天完成合并</small></div>
+              <div class="steward-daily-metric fix"><span>修复 / Debug</span><strong id="stewardDailyFix">-</strong><small>按 commit message 分类</small></div>
+              <div class="steward-daily-metric danger"><span>CI 失败</span><strong id="stewardDailyFailures">-</strong><small>昨天启动的失败 Run</small></div>
+            </div>
+
+            <div id="stewardDailyRepos" class="steward-daily-repos">
+              尚未生成昨日进展；下一次北京时间 00:30 巡检会自动生成。
             </div>
           </section>
 
