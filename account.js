@@ -17,6 +17,7 @@ const $=id=>document.getElementById(id);
 let accessToken="";
 let callbackType="";
 let currentMfaFactors=[];
+let recoveryCooldownTimer=null;
 
 function clearAccountSessionMemory(){
   accessToken="";
@@ -310,6 +311,38 @@ async function resendConfirmation(){
   }
 }
 
+function stopRecoveryCooldown(){
+  if(recoveryCooldownTimer!==null){
+    window.clearInterval(recoveryCooldownTimer);
+    recoveryCooldownTimer=null;
+  }
+  const button=$("recoveryBtn");
+  if(button){
+    button.disabled=false;
+    button.textContent="发送验证码";
+  }
+}
+
+function startRecoveryCooldown(seconds=60){
+  stopRecoveryCooldown();
+  const button=$("recoveryBtn");
+  let remaining=seconds;
+  const render=()=>{
+    button.disabled=true;
+    button.textContent=remaining+" 秒后可重新发送";
+  };
+  render();
+  recoveryCooldownTimer=window.setInterval(()=>{
+    remaining-=1;
+    if(remaining<=0){
+      stopRecoveryCooldown();
+      button.textContent="重新发送验证码";
+      return;
+    }
+    render();
+  },1000);
+}
+
 async function requestRecovery(){
   const email=$("recoveryEmail").value.trim();
   if(!validEmail(email))throw new Error("请输入有效邮箱地址。");
@@ -318,6 +351,7 @@ async function requestRecovery(){
   button.disabled=true;
   const original=button.textContent;
   button.textContent="发送中…";
+  let cooldownStarted=false;
   try{
     await request("/auth/v1/recover?redirect_to="+encodeURIComponent(accountUrl()),{
       method:"POST",
@@ -326,13 +360,17 @@ async function requestRecovery(){
     $("recoveryCode").value="";
     setStatus(
       "recoveryStatus",
-      "如果该邮箱已注册，6 位验证码已发送。请检查收件箱、垃圾邮件或企业邮箱隔离区。",
+      "6 位验证码已发送，有效期 5 分钟。请只使用最新一封邮件中的验证码；重新发送会立即使上一枚验证码失效。",
       "ok"
     );
+    startRecoveryCooldown(60);
+    cooldownStarted=true;
     $("recoveryCode").focus();
   }finally{
-    button.disabled=false;
-    button.textContent=original;
+    if(!cooldownStarted){
+      button.disabled=false;
+      button.textContent=original;
+    }
   }
 }
 
@@ -469,6 +507,8 @@ async function consumeCallback(){
 
 function goLogin(){
   resetEphemeralAuth();
+  stopRecoveryCooldown();
+  history.replaceState(null,"",window.location.pathname);
   setStage("login");
   $("loginPassword").value="";
   $("loginEmail").focus();
@@ -478,7 +518,12 @@ $("navLogin").addEventListener("click",()=>setStage("login"));
 $("navRegister").addEventListener("click",()=>setStage("register"));
 $("forgotBtn").addEventListener("click",()=>{
   $("recoveryEmail").value=$("loginEmail").value.trim();
+  history.replaceState(null,"",window.location.pathname+"?mode=recovery");
   setStage("recovery");
+  setStatus(
+    "recoveryStatus",
+    "如果已经收到验证码，请直接输入，不要再次发送。每次重新发送都会使上一枚验证码立即失效。"
+  );
   $("recoveryEmail").focus();
 });
 $("recoveryBackBtn").addEventListener("click",goLogin);
@@ -515,6 +560,18 @@ $("resetPasswordConfirm").addEventListener("keydown",event=>{
   if(event.key==="Enter")completeReset().catch(()=>{});
 });
 
+function openRequestedAccountStage(){
+  const mode=String(new URLSearchParams(window.location.search).get("mode")||"").toLowerCase();
+  if(mode!=="recovery")return false;
+  setStage("recovery");
+  setStatus(
+    "recoveryStatus",
+    "请输入账号邮箱和最新一封邮件中的 6 位验证码。若已经收到验证码，请不要再次点击“发送验证码”。"
+  );
+  $("recoveryEmail").focus();
+  return true;
+}
+
 consumeCallback().then(consumed=>{
-  if(!consumed)setStage("login");
+  if(!consumed&&!openRequestedAccountStage())setStage("login");
 });
