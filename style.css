@@ -1623,3 +1623,21 @@ body.steward-focus-mode footer:not(.steward-footer){display:none}
 @media(prefers-reduced-motion:reduce){
   .steward-daily-card{animation:none!important}
 }
+
+
+/* Maple Health Chart */
+.inspection-layout{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:24px;align-items:center}
+.maple-health-chart{display:flex;justify-content:center}
+.maple-health-chart svg{width:min(100%,360px);height:auto}
+.maple-grid{fill:none;stroke:#dbcbb8;stroke-width:1}
+.maple-leaf{fill:rgba(101,71,51,.18);stroke:#654733;stroke-width:3;animation:leafPulse 3s ease-in-out infinite}
+.maple-core{fill:#654733}
+.maple-label{font-size:13px;fill:#654733;font-weight:700}
+.maple-score{font-size:30px;fill:#fff;font-weight:800}
+.maple-sub{font-size:10px;fill:#eadfd2;letter-spacing:.12em}
+.inspection-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.inspection-metric{padding:16px;border:1px solid #e2d5c6;border-radius:14px;background:#fbf8f4}
+.inspection-metric strong{display:block}.inspection-metric span{font-size:28px;font-weight:800}.inspection-metric small{display:block;color:#7a6b60}
+.inspection-report{margin-top:18px;padding:14px;border-radius:12px;background:#f4efe9;color:#6c5b4f}
+@keyframes leafPulse{50%{transform:scale(1.02);transform-origin:center}}
+@media(max-width:780px){.inspection-layout{grid-template-columns:1fr}.inspection-metrics{grid-template-columns:1fr}}
