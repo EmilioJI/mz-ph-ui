@@ -73,6 +73,7 @@ jobs:
               "entry.js",
               "account.js",
               "app.js",
+              "maple-health.js",
               ".github/workflows/pages.yml",
               ".github/workflows/security.yml",
           }
