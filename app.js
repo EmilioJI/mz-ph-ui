@@ -2816,14 +2816,29 @@ function renderStewardDashboard(value){
   if(!latest){
     badge.textContent="等待首个快照";
     badge.className="badge";
-    for(const id of ["stewardKpiObserved","stewardKpiP0","stewardKpiP1","stewardKpiP2"]){
-      $(id).textContent="0";
+    // No snapshot means unknown, not a completed inspection with zero findings.
+    for(const id of ["stewardKpiObserved","stewardKpiP0","stewardKpiP1","stewardKpiP2","stewardCoveragePercent","stewardRiskTotal"]){
+      $(id).textContent="—";
     }
-    renderStewardCoverageRing(null,[]);
-    renderStewardRiskDistribution(null,[]);
-    renderStewardProjectOverview([],[]);
+    $("stewardCoverageRing").style.setProperty("--coverage","0");
+    $("stewardRiskDonut").style.background="conic-gradient(#d9d0c5 0 100%)";
+    for(const id of ["stewardLeafMeta","stewardProjectOverviewMeta","stewardMatrixSummary"]){
+      $(id).textContent="待采集";
+    }
+    for(const id of ["stewardRiskLegend","stewardProjectOverview","stewardLeafChart","stewardLeafDetail","stewardRecommendations","stewardFindings","stewardMatrix"]){
+      $(id).textContent="等待巡检快照；尚不能判断是否存在问题。";
+    }
+    $("stewardLeafDetail").className="steward-leaf-detail";
+    renderStewardRadar(null,[],[]);
+    renderStewardDailyProgress(value?.daily_progress||null);
+    renderStewardTrend(value?.trend||[]);
+    renderStewardLimitations(value?.limitations||[]);
     $("stewardDashboardStatus").className="steward-inline-status top-gap";
     $("stewardDashboardStatus").textContent="等待下一次 Dev Steward 巡检写入。";
+    document.querySelectorAll("[data-steward-days]").forEach(button=>{
+      button.classList.toggle("active",Number(button.dataset.stewardDays)===stewardDashboardDays);
+    });
+    return;
   }else{
     const coverage=String(latest.coverage||"UNKNOWN").toUpperCase();
     const observed=targets.filter(target=>String(target?.state||"").toUpperCase()==="OBSERVED").length;
@@ -3808,3 +3823,4 @@ document.querySelectorAll("[data-steward-scroll]").forEach(button=>{
     target.scrollIntoView({behavior:"smooth",block:"start"});
   });
 });
+
