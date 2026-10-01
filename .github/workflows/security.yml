@@ -215,8 +215,11 @@ jobs:
                   parsed = urlparse(url)
                   if parsed.scheme != "https" or parsed.netloc != "github.com":
                       raise SystemExit("Fuzi APK download must use HTTPS github.com")
-                  prefix = "/xiaoshutong-ai/mz-ph-ui/releases/download/fuzi-v"
-                  if not parsed.path.startswith(prefix) or not parsed.path.endswith(".apk"):
+                  prefixes = (
+                      "/EmilioJI/mz-ph-ui/releases/download/fuzi-v",
+                      "/xiaoshutong-ai/mz-ph-ui/releases/download/fuzi-v",
+                  )
+                  if not any(parsed.path.startswith(prefix) for prefix in prefixes) or not parsed.path.endswith(".apk"):
                       raise SystemExit("Fuzi APK URL escaped approved release namespace")
                   if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{64}", sha):
                       raise SystemExit("Fuzi APK SHA-256 invalid")
@@ -311,12 +314,11 @@ jobs:
           parsed = urlparse(policy_url)
           if parsed.scheme != "https" or parsed.netloc != "github.com":
               raise SystemExit("Fuzi v2 APK download must use HTTPS github.com")
-          expected_path = (
-              "/xiaoshutong-ai/mz-ph-ui/releases/download/"
-              + "fuzi-v" + latest_name
-              + "/FuziPartner-v" + latest_name + ".apk"
-          )
-          if parsed.path != expected_path or parsed.query or parsed.fragment:
+          expected_paths = {
+              "/EmilioJI/mz-ph-ui/releases/download/" + "fuzi-v" + latest_name + "/FuziPartner-v" + latest_name + ".apk",
+              "/xiaoshutong-ai/mz-ph-ui/releases/download/" + "fuzi-v" + latest_name + "/FuziPartner-v" + latest_name + ".apk",
+          }
+          if parsed.path not in expected_paths or parsed.query or parsed.fragment:
               raise SystemExit("Fuzi v2 APK URL escaped approved Release namespace")
           if not isinstance(policy_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", policy_sha):
               raise SystemExit("Fuzi v2 APK SHA-256 invalid")
