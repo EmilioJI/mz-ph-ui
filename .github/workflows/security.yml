@@ -215,7 +215,7 @@ jobs:
                   parsed = urlparse(url)
                   if parsed.scheme != "https" or parsed.netloc != "github.com":
                       raise SystemExit("Fuzi APK download must use HTTPS github.com")
-                  prefix = "/EmilioJI/mz-ph-ui/releases/download/fuzi-v"
+                  prefix = "/xiaoshutong-ai/mz-ph-ui/releases/download/fuzi-v"
                   if not parsed.path.startswith(prefix) or not parsed.path.endswith(".apk"):
                       raise SystemExit("Fuzi APK URL escaped approved release namespace")
                   if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{64}", sha):
@@ -226,7 +226,7 @@ jobs:
                   tag = "fuzi-v" + str(value["latest_version_name"])
                   asset_name = "FuziPartner-v" + str(value["latest_version_name"]) + ".apk"
                   api_url = (
-                      "https://api.github.com/repos/EmilioJI/mz-ph-ui/releases/tags/"
+                      "https://api.github.com/repos/xiaoshutong-ai/mz-ph-ui/releases/tags/"
                       + tag
                   )
                   request = urllib.request.Request(
@@ -312,7 +312,7 @@ jobs:
           if parsed.scheme != "https" or parsed.netloc != "github.com":
               raise SystemExit("Fuzi v2 APK download must use HTTPS github.com")
           expected_path = (
-              "/EmilioJI/mz-ph-ui/releases/download/"
+              "/xiaoshutong-ai/mz-ph-ui/releases/download/"
               + "fuzi-v" + latest_name
               + "/FuziPartner-v" + latest_name + ".apk"
           )
@@ -326,7 +326,7 @@ jobs:
           policy_tag = "fuzi-v" + latest_name
           policy_asset_name = "FuziPartner-v" + latest_name + ".apk"
           policy_api_url = (
-              "https://api.github.com/repos/EmilioJI/mz-ph-ui/releases/tags/"
+              "https://api.github.com/repos/xiaoshutong-ai/mz-ph-ui/releases/tags/"
               + policy_tag
           )
           policy_request = urllib.request.Request(
