@@ -28,6 +28,6 @@ The Supabase project URL and `sb_publishable_*` browser key are public client co
 
 ## Server-side source boundary
 
-The deployed Operations Hub Edge Function source is canonical in the private `EmilioJI/xiaoshutong-Mengzheng` repository. Server-side Supabase function source is forbidden in this public repository.
+The deployed Operations Hub Edge Function source is canonical in the private `xiaoshutong-ai/xiaoshutong-Mengzheng` repository. Server-side Supabase function source is forbidden in this public repository.
 
 This repository may expose only browser-delivered static client code and explicitly approved public update metadata. Server-side authorization, Vault/RPC implementation, private migrations, service-role logic, and private application code must remain private.
