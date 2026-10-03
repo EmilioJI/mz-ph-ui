@@ -3108,6 +3108,13 @@ let agentOpsLoading=false;
 let agentOpsGeneration=0;
 let agentOpsFailures=0;
 let agentOpsNextAttempt=0;
+let agentOpsLastSuccessAt=0;        /* 上次刷新成功时间戳：可见时1小时兜底用 */
+let agentOpsPendingRead=false;      /* pending读取需求：在途被隐藏盖住，或每次返回可见时登记；仅请求真正发起时消费 */
+let agentOpsTrack30s=false;         /* 可选临时跟踪30秒：默认关，需手动打开 */
+let agentOpsHourlyTimer=0;
+let agentOpsTrackTimer=0;
+const AGENT_OPS_FALLBACK_MS=3600000; /* 可见时1小时兜底 */
+const AGENT_OPS_TRACK_MS=30000;      /* 可选临时跟踪间隔 */
 function escHtmlAgent(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function agentStatusBadge(status){
   const labels={"工作中":"工作中",in_progress:"工作中","空闲":"空闲",idle:"空闲",blocked:"受阻",needs_review:"待评审","未知":"未知"};
@@ -3121,11 +3128,12 @@ function renderAgentStatusOps(rows){
   box.innerHTML='<div class="agent-table-wrap"><table class="agent-table"><thead><tr><th>席位</th><th>自报状态</th><th>任务</th><th>进展 / 阻塞</th><th>来源时间（北京）</th></tr></thead><tbody>'+
     Object.entries(seats).map(([id,name])=>{
       const r=byId.get(id);
-      if(!r)return '<tr><td>'+name+'</td><td>未知</td><td>尚无上报</td><td>—</td><td>—</td></tr>';
+      const seatBtn='<button type="button" class="agent-seat" data-agent="'+id+'" title="打开'+name+'的个人看板（准备中）">'+name+'</button>';
+      if(!r)return '<tr><td>'+seatBtn+'</td><td>未知</td><td>尚无上报</td><td>—</td><td>—</td></tr>';
       const t=Date.parse(r.updated_at),age=Date.now()-t;
       const stamp=Number.isFinite(t)?new Date(t).toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"}):"时间未核验";
       const note=!Number.isFinite(t)?"":age < -60000?" · 来源时间异常":age > 21600000?" · 数据超过6小时":"";
-      return '<tr><td><strong>'+name+'</strong></td><td>'+agentStatusBadge(r.status)+'</td><td>'+escHtmlAgent(r.task_name||"—")+'</td><td>'+escHtmlAgent(r.task_detail||"未提供说明")+'</td><td>'+escHtmlAgent(stamp+note)+'</td></tr>';
+      return '<tr><td>'+seatBtn+'</td><td>'+agentStatusBadge(r.status)+'</td><td>'+escHtmlAgent(r.task_name||"—")+'</td><td>'+escHtmlAgent(r.task_detail||"未提供说明")+'</td><td>'+escHtmlAgent(stamp+note)+'</td></tr>';
     }).join("")+'</tbody></table></div>';
   $("agentStatusOpsMeta").textContent="数据为成员上报；时间取自同步源，不据此判定真实心跳或失联。";
 }
@@ -3134,6 +3142,7 @@ async function loadAgentStatusOps(){
   if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden||Date.now()<agentOpsNextAttempt)return;
   const generation=agentOpsGeneration;
   agentOpsLoading=true;
+  agentOpsPendingRead=false; /* pending补读：请求真正发起才消费；被退避/并发抑制时保留到下次允许执行 */
   const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
   if(btn)btn.disabled=true;
   try{
@@ -3143,6 +3152,7 @@ async function loadAgentStatusOps(){
     renderAgentStatusOps(rows);
     agentOpsFailures=0;
     agentOpsNextAttempt=0;
+    agentOpsLastSuccessAt=Date.now();
     state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
   }catch(e){
     if(generation===agentOpsGeneration){
@@ -3153,21 +3163,88 @@ async function loadAgentStatusOps(){
         agentOpsNextAttempt=Date.now()+delay;
         if(e?.status===403){
           const box=$("agentStatusOpsList");if(box)box.innerHTML="";
+          closeAgentPersonalBoard(); /* 403 同样关闭个人板：权限不足不留旧详情 */
           state.textContent="权限不足，已清空上次详情；请确认看板读取权限。";
         }else state.textContent="刷新失败，保留上次数据；当前状态未核验。";
         state.textContent+=" "+delay/1000+"秒后可重试。";
       }
     }
-  }finally{if(generation===agentOpsGeneration){agentOpsLoading=false;if(btn)btn.disabled=false;}}
+  }finally{
+    if(generation===agentOpsGeneration){
+      agentOpsLoading=false;if(btn)btn.disabled=false;
+      /* 回归：在途请求在隐藏期间结束 → 补读一次；被退避/并发抑制时标志保留，稍后允许执行时再补 */
+      if(agentOpsPendingRead&&!document.hidden&&token){
+        const panel=$("console");
+        if(panel&&!panel.classList.contains("hidden")){
+          loadAgentStatusOps().catch(()=>{});
+        }
+      }
+    }
+  }
 }
 function clearAgentStatusOps(){
   agentOpsGeneration++;
   agentOpsLoading=false;
   agentOpsFailures=0;
   agentOpsNextAttempt=0;
+  /* 真正退出清等待关系：新会话不被旧请求卡住 */
+  agentOpsLastSuccessAt=0;
+  agentOpsPendingRead=false;
+  agentOpsTrack30s=false;
+  const track=$("agentStatusOpsTrack30s");if(track)track.checked=false;
+  agentOpsClearTimers();
+  closeAgentPersonalBoard(); /* 退出/失效时关闭个人板并重置标题 */
   const btn=$("agentStatusOpsRefresh");if(btn)btn.disabled=false;
   const box=$("agentStatusOpsList");if(box)box.innerHTML="";
   const state=$("agentStatusOpsState");if(state)state.textContent="等待登录";
+}
+/* 个人看板关闭：清选择/详情并复位标题 */
+function closeAgentPersonalBoard(){
+  const panel=$("agentPersonalBoard");
+  if(panel)panel.classList.add("hidden");
+  const title=$("agentPersonalTitle");
+  if(title)title.textContent="个人看板";
+}
+/* 看板定时器：可见时持有，隐藏时全部暂停；不改任何权限/网络行为 */
+function agentOpsPanelReadable(){
+  const panel=$("console");
+  return !!panel&&!panel.classList.contains("hidden")&&!document.hidden;
+}
+function agentOpsClearTimers(){
+  if(agentOpsHourlyTimer){clearInterval(agentOpsHourlyTimer);agentOpsHourlyTimer=0;}
+  if(agentOpsTrackTimer){clearInterval(agentOpsTrackTimer);agentOpsTrackTimer=0;}
+}
+function agentOpsEnsureTimers(){
+  agentOpsClearTimers();
+  if(!agentOpsPanelReadable())return; /* 隐藏暂停 */
+  agentOpsHourlyTimer=setInterval(()=>{
+    if(!agentOpsPanelReadable()||!token)return;
+    /* 可见时1小时兜底；pending补读优先排空（仍受退避/并发抑制约束） */
+    if(agentOpsPendingRead||Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
+  },60000);
+  if(agentOpsTrack30s){
+    agentOpsTrackTimer=setInterval(()=>{
+      if(!agentOpsPanelReadable()||!token)return;
+      loadAgentStatusOps().catch(()=>{});
+    },AGENT_OPS_TRACK_MS);
+  }
+}
+function agentOpsOnVisibilityChange(){
+  if(document.hidden){
+    if(agentOpsLoading)agentOpsPendingRead=true; /* 在途请求被隐藏盖住，记一次pending补读 */
+    agentOpsClearTimers(); /* 隐藏暂停 */
+    return;
+  }
+  agentOpsEnsureTimers();
+  if(!token||!agentOpsPanelReadable())return;
+  if(agentOpsPendingRead){
+    /* 在途请求在隐藏期间发生：已结束→补读一次；仍在途→标志保留，结束后补读 */
+    if(!agentOpsLoading)loadAgentStatusOps().catch(()=>{});
+    return;
+  }
+  /* 每次返回：先登记一次pending读取需求，再尝试执行；仅真正发请求时消费，退避不提前请求 */
+  agentOpsPendingRead=true;
+  loadAgentStatusOps().catch(()=>{});
 }
 async function loadSecuritySettings(){
   const user=await authApi("/auth/v1/user");
@@ -3525,6 +3602,7 @@ async function applyProjectSelection(){
 
 async function enterOperationsHub(){
   setAuthStage("console");
+  agentOpsEnsureTimers(); /* 打开读取的定时器底座：可见时1小时兜底就绪 */
   if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
   await loadSecuritySettings().catch(error=>{
     $("securityStatus").className="status top-gap bad";
@@ -3852,6 +3930,27 @@ $("backupTotpCopyBtn").addEventListener("click",async()=>{
 });
 $("logoutBtn").addEventListener("click",logout);
 $("opsLogoutBtn").addEventListener("click",logout);$("agentStatusOpsRefresh")?.addEventListener("click",()=>{loadAgentStatusOps().catch(()=>{});});
+/* 可选临时跟踪30秒：默认关，打开后仅在可见时生效 */
+$("agentStatusOpsTrack30s")?.addEventListener("change",(event)=>{
+  agentOpsTrack30s=!!event.target.checked;
+  agentOpsEnsureTimers();
+});
+/* 个人看板（准备中）：六席可点击 + 五栏契约；真实数据未接入，不填假数据、不标完成 */
+const AGENT_SEAT_NAMES={bi:"笔",mo:"墨",zhi:"纸",yan:"砚",juan:"卷",xia:"匣"};
+function openAgentPersonalBoard(id){
+  const panel=$("agentPersonalBoard");if(!panel)return;
+  const title=$("agentPersonalTitle");
+  if(title)title.textContent=(AGENT_SEAT_NAMES[id]||"未知席位")+" · 个人看板";
+  panel.classList.remove("hidden");
+  try{panel.scrollIntoView({behavior:"smooth",block:"start"});}catch(_e){}
+}
+$("agentStatusOpsList")?.addEventListener("click",(event)=>{
+  const target=event.target;
+  const btn=target&&target.closest?target.closest("[data-agent]"):null;
+  if(!btn||!btn.dataset||!btn.dataset.agent)return;
+  openAgentPersonalBoard(btn.dataset.agent);
+});
+$("agentPersonalClose")?.addEventListener("click",()=>{closeAgentPersonalBoard();});
 
 async function initializeOperationsSession(){
   if(consumePasswordSetupCallback()){
@@ -3916,5 +4015,6 @@ document.querySelectorAll("[data-steward-scroll]").forEach(button=>{
 
 
 // Refresh only the read-only team panel; never refresh device/config mutations.
-setInterval(()=>{loadAgentStatusOps().catch(()=>{});},30000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadAgentStatusOps().catch(()=>{});});
+// 打开读取：进入运维台时读一次（见 enterOperationsHub）；手动读取：刷新按钮；
+// 可见时1小时兜底 + 可选临时跟踪30秒（默认关）：见 agentOpsEnsureTimers；隐藏暂停：见 agentOpsOnVisibilityChange。
+document.addEventListener("visibilitychange",agentOpsOnVisibilityChange);
