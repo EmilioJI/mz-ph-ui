@@ -2978,6 +2978,7 @@ async function api(action,method="GET",body=null,query={},retry=true){
   if(response.status===401){
     clearOperationsSessionStorage();
     token="";
+    clearAgentStatusOps(); /* 跨路径：其他 ops API 401 也清看板残留（list/个人面板/title/pending/timer/generation），不新增网络/权限行为 */
     setAuthStage("login");
     const error=new Error("身份验证失败或会话已失效");
     error.code="AUTH_REQUIRED";
