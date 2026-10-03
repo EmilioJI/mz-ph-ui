@@ -62,7 +62,7 @@ function makeWorld() {
     const $ = id => document.getElementById(id);
     function __setToken(v){ token = v; }
     function __getVars(){ return {agentOpsLoading, agentOpsGeneration, agentOpsFailures,
-      agentOpsNextAttempt, agentOpsLastSuccessAt, agentOpsHiddenDuringFlight,
+      agentOpsNextAttempt, agentOpsLastSuccessAt, agentOpsPendingRead,
       agentOpsTrack30s, agentOpsHourlyTimer, agentOpsTrackTimer}; }
     function __setVars(o){ for (const k of Object.keys(o)) eval(k + " = o[k]"); }
   ` + prelude, ctx);
@@ -198,11 +198,11 @@ function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("FAIL
   const p = t.run(`loadAgentStatusOps()`);           // 在途
   t.world.document.hidden = true;
   t.run(`agentOpsOnVisibilityChange()`);             // 隐藏
-  ok("hidden-during-flight flagged", t.vars().agentOpsHiddenDuringFlight === true);
+  ok("hidden-during-flight flagged", t.vars().agentOpsPendingRead === true);
   t.world.document.hidden = false;
   release(); await p; await flush(); await flush(); // 在途结束（已返回可见）
   ok("supplementary read after flight", n === 2);
-  ok("flag consumed", t.vars().agentOpsHiddenDuringFlight === false);
+  ok("flag consumed", t.vars().agentOpsPendingRead === false);
 }
 {
   // 变体：在途在隐藏期间结束，返回可见时补读
@@ -226,11 +226,11 @@ function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("FAIL
   t.world.__authImpl = () => new Promise(res => { n++; release = () => res(ROWS); });
   const p = t.run(`loadAgentStatusOps()`);          // 旧会话在途请求
   t.run(`agentOpsEnsureTimers()`);
-  t.setVars({ agentOpsTrack30s: true, agentOpsLastSuccessAt: 123, agentOpsHiddenDuringFlight: true });
+  t.setVars({ agentOpsTrack30s: true, agentOpsLastSuccessAt: 123, agentOpsPendingRead: true });
   t.run(`clearAgentStatusOps()`);                   // 退出
   const v = t.vars();
   ok("logout clears wait relations", v.agentOpsLoading === false && v.agentOpsNextAttempt === 0 &&
-    v.agentOpsLastSuccessAt === 0 && v.agentOpsHiddenDuringFlight === false &&
+    v.agentOpsLastSuccessAt === 0 && v.agentOpsPendingRead === false &&
     v.agentOpsTrack30s === false && t.timerCount() === 0);
   ok("logout clears list", t.el("agentStatusOpsList").innerHTML === "");
   t.setToken("tok2");                               // 新会话
@@ -322,12 +322,34 @@ function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("FAIL
   t.world.document.hidden = false;
   t.run(`agentOpsOnVisibilityChange()`); await flush(); await flush(); // 返回 → 补读被退避抑制
   ok("still 2 calls during backoff", n === 2);
-  ok("pending flag preserved, not consumed early", t.vars().agentOpsHiddenDuringFlight === true);
+  ok("pending flag preserved, not consumed early", t.vars().agentOpsPendingRead === true);
   t.setVars({ agentOpsNextAttempt: Date.now() - 1 }); // 退避结束（lastSuccess 仍新鲜，验证 flag 通道）
   t.world.__authImpl = async () => { n++; return ROWS; };
   t.fireTimers(); await flush(); await flush(); // watchdog → pending补读执行
   ok("3rd call after backoff via pending flag", n === 3);
-  ok("flag consumed on execution", t.vars().agentOpsHiddenDuringFlight === false);
+  ok("flag consumed on execution", t.vars().agentOpsPendingRead === false);
+}
+
+// 16. 回归#3漏支：初读成功→手动500→退避→无在途隐藏→返回登记pending→退避后watchdog补读
+{
+  const t = makeWorld(); t.setToken("tok"); let n = 0;
+  t.world.__authImpl = async () => { n++; return ROWS; };
+  await t.run(`loadAgentStatusOps()`); await flush(); await flush(); // call 1 成功
+  t.world.__authImpl = async () => { n++; const e = new Error("x"); e.status = 500; throw e; };
+  await t.run(`loadAgentStatusOps()`); await flush(); await flush(); // call 2 手动→500→60s退避
+  ok("backoff active after 500", t.vars().agentOpsNextAttempt > Date.now());
+  t.world.document.hidden = true;
+  t.run(`agentOpsOnVisibilityChange()`); // 无在途隐藏
+  ok("no pending from hidden-without-flight", t.vars().agentOpsPendingRead === false);
+  t.world.document.hidden = false;
+  t.run(`agentOpsOnVisibilityChange()`); await flush(); await flush(); // 返回 → 登记pending，尝试被退避抑制
+  ok("still 2 calls during backoff", n === 2);
+  ok("pending demand registered on return", t.vars().agentOpsPendingRead === true);
+  t.setVars({ agentOpsNextAttempt: Date.now() - 1 }); // 退避到期（lastSuccess 仍新鲜，验证 pending 通道）
+  t.world.__authImpl = async () => { n++; return ROWS; };
+  t.fireTimers(); await flush(); await flush(); // watchdog → call 3
+  ok("3rd call after backoff via pending demand", n === 3);
+  ok("pending consumed on execution", t.vars().agentOpsPendingRead === false);
 }
 
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

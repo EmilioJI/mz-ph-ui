@@ -5,7 +5,7 @@
  let agentOpsFailures=0;
  let agentOpsNextAttempt=0;
 +let agentOpsLastSuccessAt=0;        /* 上次刷新成功时间戳：可见时1小时兜底用 */
-+let agentOpsHiddenDuringFlight=false; /* 隐藏发生在请求在途期间：返回可见、在途结束后补读一次 */
++let agentOpsPendingRead=false;      /* pending读取需求：在途被隐藏盖住，或每次返回可见时登记；仅请求真正发起时消费 */
 +let agentOpsTrack30s=false;         /* 可选临时跟踪30秒：默认关，需手动打开 */
 +let agentOpsHourlyTimer=0;
 +let agentOpsTrackTimer=0;
@@ -33,7 +33,7 @@
    if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden||Date.now()<agentOpsNextAttempt)return;
    const generation=agentOpsGeneration;
    agentOpsLoading=true;
-+  agentOpsHiddenDuringFlight=false; /* pending补读：请求真正发起才消费；被退避/并发抑制时保留到下次允许执行 */
++  agentOpsPendingRead=false; /* pending补读：请求真正发起才消费；被退避/并发抑制时保留到下次允许执行 */
    const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
    if(btn)btn.disabled=true;
    try{
@@ -45,7 +45,7 @@
      state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
    }catch(e){
      if(generation===agentOpsGeneration){
-@@ -3153,22 +3163,87 @@
+@@ -3153,22 +3163,89 @@
          agentOpsNextAttempt=Date.now()+delay;
          if(e?.status===403){
            const box=$("agentStatusOpsList");if(box)box.innerHTML="";
@@ -60,7 +60,7 @@
 +    if(generation===agentOpsGeneration){
 +      agentOpsLoading=false;if(btn)btn.disabled=false;
 +      /* 回归：在途请求在隐藏期间结束 → 补读一次；被退避/并发抑制时标志保留，稍后允许执行时再补 */
-+      if(agentOpsHiddenDuringFlight&&!document.hidden&&token){
++      if(agentOpsPendingRead&&!document.hidden&&token){
 +        const panel=$("console");
 +        if(panel&&!panel.classList.contains("hidden")){
 +          loadAgentStatusOps().catch(()=>{});
@@ -76,7 +76,7 @@
    agentOpsNextAttempt=0;
 +  /* 真正退出清等待关系：新会话不被旧请求卡住 */
 +  agentOpsLastSuccessAt=0;
-+  agentOpsHiddenDuringFlight=false;
++  agentOpsPendingRead=false;
 +  agentOpsTrack30s=false;
 +  const track=$("agentStatusOpsTrack30s");if(track)track.checked=false;
 +  agentOpsClearTimers();
@@ -107,7 +107,7 @@
 +  agentOpsHourlyTimer=setInterval(()=>{
 +    if(!agentOpsPanelReadable()||!token)return;
 +    /* 可见时1小时兜底；pending补读优先排空（仍受退避/并发抑制约束） */
-+    if(agentOpsHiddenDuringFlight||Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
++    if(agentOpsPendingRead||Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
 +  },60000);
 +  if(agentOpsTrack30s){
 +    agentOpsTrackTimer=setInterval(()=>{
@@ -118,23 +118,25 @@
 +}
 +function agentOpsOnVisibilityChange(){
 +  if(document.hidden){
-+    if(agentOpsLoading)agentOpsHiddenDuringFlight=true; /* 在途请求被隐藏盖住，记一次pending补读 */
++    if(agentOpsLoading)agentOpsPendingRead=true; /* 在途请求被隐藏盖住，记一次pending补读 */
 +    agentOpsClearTimers(); /* 隐藏暂停 */
 +    return;
 +  }
 +  agentOpsEnsureTimers();
 +  if(!token||!agentOpsPanelReadable())return;
-+  if(agentOpsHiddenDuringFlight){
++  if(agentOpsPendingRead){
 +    /* 在途请求在隐藏期间发生：已结束→补读一次；仍在途→标志保留，结束后补读 */
 +    if(!agentOpsLoading)loadAgentStatusOps().catch(()=>{});
 +    return;
 +  }
-+  loadAgentStatusOps().catch(()=>{}); /* 每次返回读取一次（受退避/并发抑制约束） */
++  /* 每次返回：先登记一次pending读取需求，再尝试执行；仅真正发请求时消费，退避不提前请求 */
++  agentOpsPendingRead=true;
++  loadAgentStatusOps().catch(()=>{});
 +}
  async function loadSecuritySettings(){
    const user=await authApi("/auth/v1/user");
    const factors=Array.isArray(user?.factors)?user.factors:[];
-@@ -3525,6 +3600,7 @@
+@@ -3525,6 +3602,7 @@
  
  async function enterOperationsHub(){
    setAuthStage("console");
@@ -142,7 +144,7 @@
    if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
    await loadSecuritySettings().catch(error=>{
      $("securityStatus").className="status top-gap bad";
-@@ -3852,6 +3928,27 @@
+@@ -3852,6 +3930,27 @@
  });
  $("logoutBtn").addEventListener("click",logout);
  $("opsLogoutBtn").addEventListener("click",logout);$("agentStatusOpsRefresh")?.addEventListener("click",()=>{loadAgentStatusOps().catch(()=>{});});
@@ -170,7 +172,7 @@
  
  async function initializeOperationsSession(){
    if(consumePasswordSetupCallback()){
-@@ -3916,5 +4013,6 @@
+@@ -3916,5 +4015,6 @@
  
  
  // Refresh only the read-only team panel; never refresh device/config mutations.
