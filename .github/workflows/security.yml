@@ -74,7 +74,7 @@ jobs:
               "account.js",
               "app.js",
               ".github/workflows/pages.yml",
-              ".github/workflows/security.yml",
+              ".github/workflows/security.yml", "status-public.js",
           }
           allowed_prefixes = (
               "updates/",
