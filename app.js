@@ -544,7 +544,10 @@ function setAuthenticated(authenticated){
   setAuthStage(authenticated?"console":"login");
 }
 
+let operationsSessionGeneration=0;
 function clearOperationsSessionStorage(){
+  operationsSessionGeneration++;
+  operationsRefreshPromise=null;
   sessionStorage.removeItem(OPS_REFRESH_STORAGE_KEY);
   sessionStorage.removeItem(OPS_SESSION_STARTED_STORAGE_KEY);
 }
@@ -584,7 +587,8 @@ function acceptOperationsAuthSession(value,{resetAge=false}={}){
 
 async function performOperationsRefresh(){
   const refreshToken=readOperationsRefreshToken();
-  if(!refreshToken)return false;
+  if(!refreshToken){token="";return false;}
+  const generation=operationsSessionGeneration;
 
   const response=await fetch(BASE+"/auth/v1/token?grant_type=refresh_token",{
     method:"POST",
@@ -598,6 +602,7 @@ async function performOperationsRefresh(){
 
   let value={};
   try{value=await response.json()}catch(_e){}
+  if(generation!==operationsSessionGeneration)return false;
   if(!response.ok){
     if(response.status===400||response.status===401||response.status===403){
       clearOperationsSessionStorage();
@@ -615,8 +620,9 @@ async function performOperationsRefresh(){
 
 async function refreshAccessTokenFromStoredSession(){
   if(operationsRefreshPromise)return operationsRefreshPromise;
-  operationsRefreshPromise=performOperationsRefresh()
-    .finally(()=>{operationsRefreshPromise=null;});
+  const pending=performOperationsRefresh()
+    .finally(()=>{if(operationsRefreshPromise===pending)operationsRefreshPromise=null;});
+  operationsRefreshPromise=pending;
   return operationsRefreshPromise;
 }
 
@@ -649,6 +655,14 @@ async function restoreOperationsSession(){
 }
 
 async function authApi(path,method="GET",body=null,retry=true){
+  const generation=operationsSessionGeneration;
+  const ensureCurrentSession=()=>{
+    if(generation!==operationsSessionGeneration){
+      const error=new Error("会话已变更，已忽略旧请求结果。");
+      error.code="STALE_SESSION";
+      throw error;
+    }
+  };
   const response=await fetch(BASE+path,{
     method,
     headers:{
@@ -661,8 +675,10 @@ async function authApi(path,method="GET",body=null,retry=true){
   });
   let value={};
   try{value=await response.json()}catch(_e){}
+  ensureCurrentSession();
   if(response.status===401&&retry){
     const refreshed=await refreshAccessTokenFromStoredSession();
+    ensureCurrentSession();
     if(refreshed)return authApi(path,method,body,false);
   }
   if(!response.ok){
@@ -3111,7 +3127,8 @@ function renderAgentStatusOps(rows){
   $("agentStatusOpsMeta").textContent="数据为成员上报；时间取自同步源，不据此判定真实心跳或失联。";
 }
 async function loadAgentStatusOps(){
-  if(agentOpsLoading||!token||$("console").classList.contains("hidden")||document.hidden)return;
+  if(!token){clearAgentStatusOps();return;}
+  if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden)return;
   const generation=agentOpsGeneration;
   agentOpsLoading=true;
   const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
@@ -3123,7 +3140,10 @@ async function loadAgentStatusOps(){
     renderAgentStatusOps(rows);
     state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
   }catch(e){
-    if(generation===agentOpsGeneration&&token)state.textContent="刷新失败，保留上次数据；当前状态未核验。";
+    if(generation===agentOpsGeneration){
+      if(!token||e?.status===401){clearAgentStatusOps();state.textContent="登录已失效，请重新登录。";}
+      else state.textContent="刷新失败，保留上次数据；当前状态未核验。";
+    }
   }finally{agentOpsLoading=false;if(btn)btn.disabled=false;}
 }
 function clearAgentStatusOps(){
