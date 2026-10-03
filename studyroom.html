@@ -47,6 +47,7 @@
 <nav class="steward-side-nav" aria-label="书院导航">
 <button class="steward-side-nav-btn active" type="button" data-sr="srOverview">总览</button>
 <button class="steward-side-nav-btn" type="button" data-sr="srDevices">设备管理</button>
+<button class="steward-side-nav-btn" type="button" data-sr="srCodes">预设录取码</button>
 <button class="steward-side-nav-btn" type="button" data-sr="srAgents">六席状态</button>
 </nav>
 <div class="steward-side-motto">
@@ -84,10 +85,20 @@
 
 <!-- 设备管理 -->
 <div id="srDevices" class="sr-section">
-<p class="muted">邀请码由你私下分发给合规用户 · 停用后该设备无法使用</p>
+<p class="muted">书院录取码由你私下分发给合规用户 · 停用后该设备无法使用</p>
 <table class="sr-table" style="margin-top:12px"><thead><tr>
-<th>设备</th><th>状态</th><th>邀请码</th><th>版本</th><th>最后在线</th><th>操作</th>
+<th>设备</th><th>状态</th><th>书院录取码</th><th>版本</th><th>最后在线</th><th>操作</th>
 </tr></thead><tbody id="srDevList"><tr><td colspan="6" class="muted">加载中…</td></tr></tbody></table>
+</div>
+
+<!-- 预设录取码 -->
+<div id="srCodes" class="sr-section">
+<p class="muted">提前创建书院录取码，设备首次打开输入即可验证 · 未使用的码可删除</p>
+<p><button class="sr-btn primary" onclick="addPresetCode()">+ 新建录取码</button>
+<button class="sr-btn" onclick="loadPresetCodes()">刷新</button></p>
+<table class="sr-table" style="margin-top:12px"><thead><tr>
+<th>录取码</th><th>备注</th><th>创建时间</th><th>使用状态</th><th>操作</th>
+</tr></thead><tbody id="srCodeList"><tr><td colspan="5" class="muted">加载中…</td></tr></tbody></table>
 </div>
 
 <!-- 六席状态 -->
@@ -187,7 +198,7 @@ async function loadDevices(){
       + "<td>"+(r.invite_code ? '<span class="sr-code">'+esc(r.invite_code)+"</span>" : '<span class="muted">未设置</span>')+"</td>"
       + "<td>"+esc(r.app_version||"-")+"</td>"
       + "<td>"+esc(r.last_seen?new Date(r.last_seen).toLocaleString("zh-CN",{hour12:false}):"-")+"</td>"
-      + "<td><button class='sr-btn' onclick=\"setCode('"+esc(r.device_id)+"')\">设邀请码</button>"
+      + "<td><button class='sr-btn' onclick=\"setCode('"+esc(r.device_id)+"')\">设录取码</button>"
       + (r.invite_code ? "<button class='sr-btn' onclick=\"clearCode('"+esc(r.device_id)+"')\">清除</button>" : "")
       + (r.enabled ? "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',false)\">停用</button>"
                    : "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',true)\">启用</button>")
@@ -196,7 +207,7 @@ async function loadDevices(){
   }catch(e){ document.getElementById("srDevList").innerHTML = '<tr><td colspan="6" class="muted">加载失败</td></tr>'; }
 }
 async function setCode(id){
-  const code = prompt("输入邀请码（8位字母数字，私下发给用户）:");
+  const code = prompt("输入书院录取码（8位字母数字，私下发给用户）:");
   if(!code) return;
   try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {invite_code: code.trim(), status: "pending"}); alert("已设置"); loadDevices(); }
   catch(e){ alert("失败: "+e.message); }
@@ -213,6 +224,45 @@ async function toggleDev(id, en){
 async function delDev(id){
   if(!confirm("删除该设备？")) return;
   try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "DELETE"); loadDevices(); }
+  catch(e){ alert("失败: "+e.message); }
+}
+
+// 预设录取码
+async function loadPresetCodes(){
+  try{
+    const rows = await api("/rest/v1/preset_codes?select=*&order=created_at.desc");
+    const tb = document.getElementById("srCodeList");
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="5" class="muted">暂无预设码，点击"新建录取码"创建</td></tr>'; return; }
+    tb.innerHTML = rows.map(r =>
+      "<tr><td><span class=\"sr-code\">"+esc(r.code)+"</span></td>"
+      + "<td>"+esc(r.note||"-")+"</td>"
+      + "<td>"+esc(r.created_at?new Date(r.created_at).toLocaleString("zh-CN",{hour12:false}):"-")+"</td>"
+      + "<td>"+(r.used_at ? '<span class="sr-badge ok">已使用</span><br><span class="muted" style="font-size:11px">'+esc(r.used_at?new Date(r.used_at).toLocaleString("zh-CN",{hour12:false}):"")+"</span>" : '<span class="sr-badge warn">未使用</span>')+"</td>"
+      + "<td>"+(r.used_at ? "" : "<button class='sr-btn' onclick=\"delPresetCode('"+r.id+"')\">删除</button>")+"</td></tr>"
+    ).join("");
+  }catch(e){ document.getElementById("srCodeList").innerHTML = '<tr><td colspan="5" class="muted">加载失败</td></tr>'; }
+}
+function genCode(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for(let i=0;i<8;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+async function addPresetCode(){
+  const code = prompt("输入录取码（8位字母数字，留空自动生成）:", genCode());
+  if(code===null) return;
+  const finalCode = (code.trim()||genCode()).toUpperCase();
+  const note = prompt("备注（给谁用，可空）:", "");
+  if(note===null) return;
+  try{
+    await api("/rest/v1/preset_codes", "POST", {code: finalCode, note: note.trim()||null});
+    alert("已创建："+finalCode);
+    loadPresetCodes();
+  }catch(e){ alert("失败: "+e.message); }
+}
+async function delPresetCode(id){
+  if(!confirm("删除该预设码？")) return;
+  try{ await api("/rest/v1/preset_codes?id=eq."+id, "DELETE"); loadPresetCodes(); }
   catch(e){ alert("失败: "+e.message); }
 }
 
@@ -234,7 +284,7 @@ async function loadAgents(){
   }catch(e){ document.getElementById("srAgentList").innerHTML = '<tr><td colspan="4" class="muted">加载失败</td></tr>'; }
 }
 
-function refreshAll(){ loadOverview(); loadDevices(); loadAgents(); }
+function refreshAll(){ loadOverview(); loadDevices(); loadPresetCodes(); loadAgents(); }
 
 (function(){
   getToken().then(t=>{
