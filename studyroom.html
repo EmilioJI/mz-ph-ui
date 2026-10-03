@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小书童水墨书院 · 运维</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* 书院专属微调 */
+.steward-side-title .steward-side-seal{background:#b03a2e;}
+.sr-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0;}
+.sr-stat{background:#fff;border:1px solid #e8e0d0;border-radius:10px;padding:14px 16px;}
+.sr-stat .v{font-size:26px;font-weight:700;color:#2a2118;}
+.sr-stat .k{font-size:12px;color:#8a7b66;margin-top:4px;}
+.sr-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:14px;}
+.sr-table th,.sr-table td{padding:10px 12px;text-align:left;border-bottom:1px solid #f0eadd;}
+.sr-table th{background:#f7f0e0;font-weight:600;font-size:13px;}
+.sr-code{font-family:monospace;background:#f7f0e0;padding:2px 10px;border-radius:6px;font-size:13px;}
+.sr-badge{display:inline-block;padding:2px 12px;border-radius:12px;font-size:12px;}
+.sr-badge.ok{background:#e6f4ea;color:#1a7f37;}
+.sr-badge.warn{background:#fef3c7;color:#92400e;}
+.sr-badge.bad{background:#fee2e2;color:#991b1b;}
+.sr-btn{padding:6px 14px;border:1px solid #d8cfc0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-right:6px;}
+.sr-btn:hover{background:#f7f0e0;}
+.sr-btn.primary{background:#b03a2e;color:#fff;border-color:#b03a2e;}
+.sr-section{display:none;}
+.sr-section.active{display:block;}
+#srLoginGate{text-align:center;padding:80px 20px;}
+</style>
+</head>
+<body class="steward-focus-mode">
+<div id="srLoginGate" style="display:none">
+<h2>小书童水墨书院</h2>
+<p class="muted">请先通过运维平台登录</p>
+<button class="sr-btn primary" onclick="location.href='workspace.html'">去登录</button>
+</div>
+
+<div id="srApp" style="display:none">
+<section class="steward-focus">
+<div class="steward-focus-shell">
+<aside class="steward-side">
+<div class="steward-side-brand">
+<div class="steward-side-title">水墨书院 <span class="steward-side-seal">墨</span></div>
+<div>六人同院 · 笔墨生香</div>
+</div>
+<nav class="steward-side-nav" aria-label="书院导航">
+<button class="steward-side-nav-btn active" type="button" data-sr="srOverview">总览</button>
+<button class="steward-side-nav-btn" type="button" data-sr="srDevices">设备管理</button>
+<button class="steward-side-nav-btn" type="button" data-sr="srAgents">六席状态</button>
+</nav>
+<div class="steward-side-motto">
+<strong>笔墨纸砚 · 卷匣同心</strong>
+<span>一院六席 · 各安其位</span>
+</div>
+<div class="steward-side-actions">
+<button class="ghost steward-side-exit" type="button" onclick="location.href='workspace.html'">返回项目运维</button>
+<button class="ghost steward-side-exit" type="button" onclick="location.href='workspace.html'">退出登录</button>
+</div>
+</aside>
+
+<div class="steward-canvas">
+<header class="steward-focus-header">
+<div>
+<div class="eyebrow">一院六席 · 笔墨生香</div>
+<h1>小书童水墨书院</h1>
+<p>六位住户的身心安放之所 · 设备与状态一目了然</p>
+</div>
+<div class="steward-header-controls">
+<button class="sr-btn" type="button" onclick="refreshAll()">刷新</button>
+</div>
+</header>
+
+<!-- 总览 -->
+<div id="srOverview" class="sr-section active">
+<div class="sr-stat-grid">
+<div class="sr-stat"><div class="v" id="stAppVer">—</div><div class="k">App 最新版本</div></div>
+<div class="sr-stat"><div class="v" id="stDevTotal">—</div><div class="k">连接设备</div></div>
+<div class="sr-stat"><div class="v" id="stDevActive">—</div><div class="k">正常设备</div></div>
+<div class="sr-stat"><div class="v" id="stDevPending">—</div><div class="k">待邀请码</div></div>
+</div>
+<p class="muted">版本发布：<a id="stApkLink" href="#" target="_blank">下载最新 APK</a> · <span id="stChangelog"></span></p>
+</div>
+
+<!-- 设备管理 -->
+<div id="srDevices" class="sr-section">
+<p class="muted">邀请码由你私下分发给合规用户 · 停用后该设备无法使用</p>
+<table class="sr-table" style="margin-top:12px"><thead><tr>
+<th>设备</th><th>状态</th><th>邀请码</th><th>版本</th><th>最后在线</th><th>操作</th>
+</tr></thead><tbody id="srDevList"><tr><td colspan="6" class="muted">加载中…</td></tr></tbody></table>
+</div>
+
+<!-- 六席状态 -->
+<div id="srAgents" class="sr-section">
+<p class="muted">数据来自治理仓状态板同步</p>
+<table class="sr-table" style="margin-top:12px"><thead><tr>
+<th>席位</th><th>状态</th><th>任务</th><th>更新时间</th>
+</tr></thead><tbody id="srAgentList"><tr><td colspan="4" class="muted">加载中…</td></tr></tbody></table>
+</div>
+
+</div>
+</div>
+</section>
+</div>
+
+<script>
+const SB_URL = "https://ftcyyvyoowkctbupzkct.supabase.co";
+const SB_ANON = "sb_publishable_vsp2sdBNKkqGh97lTvJRFg_Bmk7fNdO";
+
+function getToken(){
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && k.includes("auth-token")){
+      try{ const v = JSON.parse(localStorage.getItem(k)); if(v && v.access_token) return v.access_token; }catch(e){}
+    }
+  }
+  return null;
+}
+async function api(path, method, body){
+  const token = getToken(); if(!token) throw new Error("未登录");
+  const r = await fetch(SB_URL + path, {
+    method: method||"GET",
+    headers: {"apikey": SB_ANON, "Authorization": "Bearer "+token, "Content-Type": "application/json", "Prefer": "return=representation"},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// 侧边导航
+document.querySelectorAll("[data-sr]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-sr]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  document.querySelectorAll(".sr-section").forEach(s => s.classList.remove("active"));
+  document.getElementById(b.dataset.sr).classList.add("active");
+}));
+
+// 总览
+async function loadOverview(){
+  try{
+    const devices = await api("/rest/v1/devices?select=status,enabled,app_version");
+    const total = devices.length;
+    const active = devices.filter(d => d.enabled && d.status === "active").length;
+    const pending = devices.filter(d => d.enabled && d.status !== "active").length;
+    document.getElementById("stDevTotal").textContent = total;
+    document.getElementById("stDevActive").textContent = active;
+    document.getElementById("stDevPending").textContent = pending;
+    // 最新版本（取 app_version 出现最多的）
+    const vers = {};
+    devices.forEach(d => { if(d.app_version) vers[d.app_version] = (vers[d.app_version]||0)+1; });
+    const top = Object.keys(vers).sort((a,b) => vers[b]-vers[a])[0];
+    if(top) document.getElementById("stAppVer").textContent = top;
+  }catch(e){}
+  // 版本文件
+  try{
+    const r = await fetch("https://raw.githubusercontent.com/xiaoshutong-ai/xiaoshutong-box/main/apps/studyroom-version.json");
+    const v = await r.json();
+    document.getElementById("stAppVer").textContent = v.versionName || "—";
+    document.getElementById("stApkLink").href = v.apkUrl || "#";
+    document.getElementById("stChangelog").textContent = v.changelog || "";
+  }catch(e){}
+}
+
+// 设备管理
+function devBadge(s, enabled){
+  if(!enabled) return '<span class="sr-badge bad">停用</span>';
+  return s === "active" ? '<span class="sr-badge ok">正常</span>' : '<span class="sr-badge warn">待邀请码</span>';
+}
+async function loadDevices(){
+  try{
+    const rows = await api("/rest/v1/devices?select=*&order=last_seen.desc");
+    const tb = document.getElementById("srDevList");
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="6" class="muted">暂无设备</td></tr>'; return; }
+    tb.innerHTML = rows.map(r =>
+      "<tr><td><strong>"+esc(r.device_name||"未命名")+"</strong><br><span class='muted' style='font-size:11px'>"+esc((r.device_id||"").slice(0,8))+"…</span></td>"
+      + "<td>"+devBadge(r.status, r.enabled)+"</td>"
+      + "<td>"+(r.invite_code ? '<span class="sr-code">'+esc(r.invite_code)+"</span>" : '<span class="muted">未设置</span>')+"</td>"
+      + "<td>"+esc(r.app_version||"-")+"</td>"
+      + "<td>"+esc(r.last_seen?new Date(r.last_seen).toLocaleString("zh-CN",{hour12:false}):"-")+"</td>"
+      + "<td><button class='sr-btn' onclick=\"setCode('"+esc(r.device_id)+"')\">设邀请码</button>"
+      + (r.enabled ? "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',false)\">停用</button>"
+                   : "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',true)\">启用</button>")
+      + "<button class='sr-btn' onclick=\"delDev('"+esc(r.device_id)+"')\">删除</button></td></tr>"
+    ).join("");
+  }catch(e){ document.getElementById("srDevList").innerHTML = '<tr><td colspan="6" class="muted">加载失败</td></tr>'; }
+}
+async function setCode(id){
+  const code = prompt("输入邀请码（私下发给用户）:");
+  if(!code) return;
+  try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {invite_code: code.trim(), status: "pending"}); alert("已设置"); loadDevices(); }
+  catch(e){ alert("失败: "+e.message); }
+}
+async function toggleDev(id, en){
+  try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {enabled: en}); loadDevices(); }
+  catch(e){ alert("失败: "+e.message); }
+}
+async function delDev(id){
+  if(!confirm("删除该设备？")) return;
+  try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "DELETE"); loadDevices(); }
+  catch(e){ alert("失败: "+e.message); }
+}
+
+// 六席状态
+async function loadAgents(){
+  try{
+    const rows = await api("/rest/v1/agent_status?select=*&order=id");
+    const order = ["bi","mo","zhi","yan","juan","xia"];
+    rows.sort((a,b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const names = {bi:"笔", mo:"墨", zhi:"纸", yan:"砚", juan:"卷", xia:"匣"};
+    document.getElementById("srAgentList").innerHTML = rows.map(r => {
+      const badge = r.status === "工作中" ? '<span class="sr-badge ok">工作中</span>'
+        : r.status === "blocked" ? '<span class="sr-badge bad">受阻</span>'
+        : '<span class="sr-badge">空闲</span>';
+      return "<tr><td><strong>"+esc(names[r.id]||r.id)+"</strong></td><td>"+badge+"</td>"
+        + "<td>"+esc(r.task_name||"—")+"</td>"
+        + "<td>"+esc(r.updated_at?new Date(r.updated_at).toLocaleString("zh-CN",{hour12:false}):"—")+"</td></tr>";
+    }).join("");
+  }catch(e){ document.getElementById("srAgentList").innerHTML = '<tr><td colspan="4" class="muted">加载失败</td></tr>'; }
+}
+
+function refreshAll(){ loadOverview(); loadDevices(); loadAgents(); }
+
+(function(){
+  if(!getToken()){ document.getElementById("srLoginGate").style.display = ""; }
+  else{ document.getElementById("srApp").style.display = ""; refreshAll(); }
+})();
+</script>
+</body>
+</html>
