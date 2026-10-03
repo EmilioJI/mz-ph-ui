@@ -230,8 +230,14 @@ async function loadAgents(){
 function refreshAll(){ loadOverview(); loadDevices(); loadAgents(); }
 
 (function(){
-  getToken().then(t=>{ if(!t){ document.getElementById("srLoginGate").style.display = ""; } });
-  else{ document.getElementById("srApp").style.display = ""; refreshAll(); }
+  getToken().then(t=>{
+    if(!t){
+      document.getElementById("srLoginGate").style.display = "";
+    }else{
+      document.getElementById("srApp").style.display = "";
+      refreshAll();
+    }
+  });
 })();
 </script>
 </body>
