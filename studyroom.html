@@ -193,18 +193,27 @@ async function loadDevices(){
     const tb = document.getElementById("srDevList");
     if(!rows.length){ tb.innerHTML = '<tr><td colspan="6" class="muted">暂无设备</td></tr>'; return; }
     tb.innerHTML = rows.map(r =>
-      "<tr><td><strong>"+esc(r.device_name||"未命名")+"</strong><br><span class='muted' style='font-size:11px' title='"+esc(r.device_id||"")+"'>"+esc(r.device_id||"")+"</span></td>"
+      "<tr><td><strong>"+esc(r.nickname||r.device_name||"未命名")+"</strong>"+(r.nickname?"<br><span class='muted' style='font-size:11px'>"+esc(r.device_name||"")+"</span>":"")+"<br><span class='muted' style='font-size:11px' title='"+esc(r.device_id||"")+"'>"+esc(r.device_id||"")+"</span></td>"
       + "<td>"+devBadge(r.status, r.enabled)+"</td>"
       + "<td>"+(r.invite_code ? '<span class="sr-code">'+esc(r.invite_code)+"</span>" : '<span class="muted">未设置</span>')+"</td>"
       + "<td>"+esc(r.app_version||"-")+"</td>"
       + "<td>"+esc(r.last_seen?new Date(r.last_seen).toLocaleString("zh-CN",{hour12:false}):"-")+"</td>"
-      + "<td><button class='sr-btn' onclick=\"setCode('"+esc(r.device_id)+"')\">设录取码</button>"
+      + "<td><button class='sr-btn' onclick=\"setNickname('"+esc(r.device_id)+"','"+esc(r.nickname||"")+"')\">备注</button>"
+      + "<button class='sr-btn' onclick=\"setCode('"+esc(r.device_id)+"')\">设录取码</button>"
       + (r.invite_code ? "<button class='sr-btn' onclick=\"clearCode('"+esc(r.device_id)+"')\">清除</button>" : "")
       + (r.enabled ? "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',false)\">停用</button>"
                    : "<button class='sr-btn' onclick=\"toggleDev('"+esc(r.device_id)+"',true)\">启用</button>")
       + "<button class='sr-btn' onclick=\"delDev('"+esc(r.device_id)+"')\">删除</button></td></tr>"
     ).join("");
   }catch(e){ document.getElementById("srDevList").innerHTML = '<tr><td colspan="6" class="muted">加载失败</td></tr>'; }
+}
+async function setNickname(id, cur){
+  const nn = prompt("设备备注昵称（仅平台显示）:", cur||"");
+  if(nn===null) return;
+  try{
+    await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {nickname: nn.trim()||null});
+    loadDevices();
+  }catch(e){ alert("保存失败"); }
 }
 async function setCode(id){
   const code = prompt("输入书院录取码（8位字母数字，私下发给用户）:");

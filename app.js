@@ -3106,9 +3106,12 @@ async function verifyMfa(){
 /* 六席状态：只读现有接口，沿用运维登录 */
 let agentOpsLoading=false;
 let agentOpsGeneration=0;
+let agentOpsFailures=0;
+let agentOpsNextAttempt=0;
 function escHtmlAgent(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function agentStatusBadge(status){
-  const label={"工作中":"工作中",in_progress:"工作中","空闲":"空闲",idle:"空闲",blocked:"受阻",needs_review:"待评审","未知":"未知"}[status]||"未知";
+  const labels={"工作中":"工作中",in_progress:"工作中","空闲":"空闲",idle:"空闲",blocked:"受阻",needs_review:"待评审","未知":"未知"};
+  const label=Object.hasOwn(labels,status)?labels[status]:"未知";
   return '<span class="badge">'+escHtmlAgent(label)+'</span>';
 }
 function renderAgentStatusOps(rows){
@@ -3128,7 +3131,7 @@ function renderAgentStatusOps(rows){
 }
 async function loadAgentStatusOps(){
   if(!token){clearAgentStatusOps();return;}
-  if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden)return;
+  if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden||Date.now()<agentOpsNextAttempt)return;
   const generation=agentOpsGeneration;
   agentOpsLoading=true;
   const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
@@ -3138,16 +3141,31 @@ async function loadAgentStatusOps(){
     if(generation!==agentOpsGeneration||!token)return;
     if(!Array.isArray(rows))throw new Error("状态格式异常");
     renderAgentStatusOps(rows);
+    agentOpsFailures=0;
+    agentOpsNextAttempt=0;
     state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
   }catch(e){
     if(generation===agentOpsGeneration){
       if(!token||e?.status===401){clearAgentStatusOps();state.textContent="登录已失效，请重新登录。";}
-      else state.textContent="刷新失败，保留上次数据；当前状态未核验。";
+      else {
+        agentOpsFailures++;
+        const delay=Math.min(300000,30000*2**Math.min(agentOpsFailures,4));
+        agentOpsNextAttempt=Date.now()+delay;
+        if(e?.status===403){
+          const box=$("agentStatusOpsList");if(box)box.innerHTML="";
+          state.textContent="权限不足，已清空上次详情；请确认看板读取权限。";
+        }else state.textContent="刷新失败，保留上次数据；当前状态未核验。";
+        state.textContent+=" "+delay/1000+"秒后可重试。";
+      }
     }
-  }finally{agentOpsLoading=false;if(btn)btn.disabled=false;}
+  }finally{if(generation===agentOpsGeneration){agentOpsLoading=false;if(btn)btn.disabled=false;}}
 }
 function clearAgentStatusOps(){
   agentOpsGeneration++;
+  agentOpsLoading=false;
+  agentOpsFailures=0;
+  agentOpsNextAttempt=0;
+  const btn=$("agentStatusOpsRefresh");if(btn)btn.disabled=false;
   const box=$("agentStatusOpsList");if(box)box.innerHTML="";
   const state=$("agentStatusOpsState");if(state)state.textContent="等待登录";
 }
@@ -3484,7 +3502,7 @@ async function applyProjectSelection(){
   const project=membershipFor();
   if(!project)return;
   sessionStorage.setItem("mz_ops_project",selectedProjectKey);
-  $("projectSelect").value=selectedProjectKey;
+  /* 小书童水墨书院是独立页面：下拉框选中后直接跳转，不在 Hub 内渲染 */ const studyroomKey=selectedProjectKey==="xiaoshutong-studyroom"||String(project.display_name||"").trim()==="小书童水墨书院"; if(studyroomKey){ /* 不把独立页 key 留在会话选中里，避免从独立页返回 Hub 时循环跳转 */ const fallback=opsMemberships.some(p=>p?.project_key==="mengzheng")?"mengzheng":String(opsMemberships[0]?.project_key||""); if(fallback)sessionStorage.setItem("mz_ops_project",fallback); window.location.href="./studyroom.html"; return; } $("projectSelect").value=selectedProjectKey;
   renderProjectSelection();
   $("auditLog").textContent="正在加载 "+String(project.display_name||selectedProjectKey)+" 审计…";
   await loadAudit();
