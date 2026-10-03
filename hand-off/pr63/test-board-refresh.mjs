@@ -30,8 +30,8 @@ function extractConsts(source, names) {
 }
 
 const FNS = ["escHtmlAgent", "agentStatusBadge", "renderAgentStatusOps", "loadAgentStatusOps",
-  "clearAgentStatusOps", "agentOpsPanelReadable", "agentOpsClearTimers", "agentOpsEnsureTimers",
-  "agentOpsOnVisibilityChange", "openAgentPersonalBoard"];
+  "clearAgentStatusOps", "closeAgentPersonalBoard", "agentOpsPanelReadable", "agentOpsClearTimers",
+  "agentOpsEnsureTimers", "agentOpsOnVisibilityChange", "openAgentPersonalBoard"];
 const prelude =
   extractLets(src, "agentOps") + "\n" +
   extractConsts(src, ["AGENT_OPS_FALLBACK_MS", "AGENT_OPS_TRACK_MS", "AGENT_SEAT_NAMES"]) + "\n" +
@@ -275,6 +275,59 @@ function ok(name, cond) { if (cond) { pass++; } else { fail++; console.log("FAIL
   ok("honest empty states, no fake data",
     (doc.match(/数据未接入/g) || []).length >= 6);
   ok("marked as preparation, not complete", doc.includes("准备中"));
+}
+
+// 13. 回归#1：初读成功→无在途隐藏→1小时内返回，每次返回读取一次
+{
+  const t = makeWorld(); t.setToken("tok"); let n = 0;
+  t.world.__authImpl = async () => { n++; return ROWS; };
+  await t.run(`loadAgentStatusOps()`); await flush(); await flush(); // 初读成功 call 1
+  t.world.document.hidden = true;
+  t.run(`agentOpsOnVisibilityChange()`); // 无在途隐藏
+  t.world.document.hidden = false;
+  t.run(`agentOpsOnVisibilityChange()`); await flush(); await flush(); // 1小时内返回
+  ok("return-within-1h reads once", n === 2);
+}
+
+// 14. 回归#2：退出/401/403 须关闭个人板并重置标题
+{
+  const t = makeWorld();
+  t.run(`openAgentPersonalBoard("bi")`);
+  ok("personal opens", !t.el("agentPersonalBoard").classList.contains("hidden"));
+  t.run(`clearAgentStatusOps()`); // 退出路径
+  ok("clear closes personal board", t.el("agentPersonalBoard").classList.contains("hidden"));
+  ok("clear resets personal title", t.el("agentPersonalTitle").textContent === "个人看板");
+}
+{
+  const t2 = makeWorld(); t2.setToken("tok");
+  t2.world.__authImpl = async () => { const e = new Error("f"); e.status = 403; throw e; };
+  t2.run(`openAgentPersonalBoard("juan")`);
+  await t2.run(`loadAgentStatusOps()`); await flush(); await flush();
+  ok("403 closes personal board", t2.el("agentPersonalBoard").classList.contains("hidden"));
+  ok("403 resets personal title", t2.el("agentPersonalTitle").textContent === "个人看板");
+}
+
+// 15. 回归#3：pending补读保留到允许执行，不提前消费
+{
+  const t = makeWorld(); t.setToken("tok"); let n = 0;
+  t.world.__authImpl = async () => { n++; return ROWS; };
+  await t.run(`loadAgentStatusOps()`); await flush(); await flush(); // call 1 成功
+  let rej;
+  t.world.__authImpl = () => new Promise((_, r) => { n++; rej = r; });
+  const p = t.run(`loadAgentStatusOps()`); // call 2 在途
+  t.world.document.hidden = true;
+  t.run(`agentOpsOnVisibilityChange()`); // 隐藏 → flag
+  rej(Object.assign(new Error("x"), { status: 500 }));
+  await p; await flush(); await flush(); // 500 → 退避60s
+  t.world.document.hidden = false;
+  t.run(`agentOpsOnVisibilityChange()`); await flush(); await flush(); // 返回 → 补读被退避抑制
+  ok("still 2 calls during backoff", n === 2);
+  ok("pending flag preserved, not consumed early", t.vars().agentOpsHiddenDuringFlight === true);
+  t.setVars({ agentOpsNextAttempt: Date.now() - 1 }); // 退避结束（lastSuccess 仍新鲜，验证 flag 通道）
+  t.world.__authImpl = async () => { n++; return ROWS; };
+  t.fireTimers(); await flush(); await flush(); // watchdog → pending补读执行
+  ok("3rd call after backoff via pending flag", n === 3);
+  ok("flag consumed on execution", t.vars().agentOpsHiddenDuringFlight === false);
 }
 
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

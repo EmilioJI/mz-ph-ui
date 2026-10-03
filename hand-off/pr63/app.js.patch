@@ -29,7 +29,15 @@
      }).join("")+'</tbody></table></div>';
    $("agentStatusOpsMeta").textContent="数据为成员上报；时间取自同步源，不据此判定真实心跳或失联。";
  }
-@@ -3143,6 +3151,7 @@
+@@ -3134,6 +3142,7 @@
+   if(agentOpsLoading||$("console").classList.contains("hidden")||document.hidden||Date.now()<agentOpsNextAttempt)return;
+   const generation=agentOpsGeneration;
+   agentOpsLoading=true;
++  agentOpsHiddenDuringFlight=false; /* pending补读：请求真正发起才消费；被退避/并发抑制时保留到下次允许执行 */
+   const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
+   if(btn)btn.disabled=true;
+   try{
+@@ -3143,6 +3152,7 @@
      renderAgentStatusOps(rows);
      agentOpsFailures=0;
      agentOpsNextAttempt=0;
@@ -37,7 +45,13 @@
      state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
    }catch(e){
      if(generation===agentOpsGeneration){
-@@ -3158,17 +3167,74 @@
+@@ -3153,22 +3163,87 @@
+         agentOpsNextAttempt=Date.now()+delay;
+         if(e?.status===403){
+           const box=$("agentStatusOpsList");if(box)box.innerHTML="";
++          closeAgentPersonalBoard(); /* 403 同样关闭个人板：权限不足不留旧详情 */
+           state.textContent="权限不足，已清空上次详情；请确认看板读取权限。";
+         }else state.textContent="刷新失败，保留上次数据；当前状态未核验。";
          state.textContent+=" "+delay/1000+"秒后可重试。";
        }
      }
@@ -45,11 +59,10 @@
 +  }finally{
 +    if(generation===agentOpsGeneration){
 +      agentOpsLoading=false;if(btn)btn.disabled=false;
-+      /* 回归：在途请求在隐藏期间结束，返回可见后补读一次（仅一次，标志即消费） */
++      /* 回归：在途请求在隐藏期间结束 → 补读一次；被退避/并发抑制时标志保留，稍后允许执行时再补 */
 +      if(agentOpsHiddenDuringFlight&&!document.hidden&&token){
 +        const panel=$("console");
 +        if(panel&&!panel.classList.contains("hidden")){
-+          agentOpsHiddenDuringFlight=false;
 +          loadAgentStatusOps().catch(()=>{});
 +        }
 +      }
@@ -67,10 +80,18 @@
 +  agentOpsTrack30s=false;
 +  const track=$("agentStatusOpsTrack30s");if(track)track.checked=false;
 +  agentOpsClearTimers();
++  closeAgentPersonalBoard(); /* 退出/失效时关闭个人板并重置标题 */
    const btn=$("agentStatusOpsRefresh");if(btn)btn.disabled=false;
    const box=$("agentStatusOpsList");if(box)box.innerHTML="";
    const state=$("agentStatusOpsState");if(state)state.textContent="等待登录";
  }
++/* 个人看板关闭：清选择/详情并复位标题 */
++function closeAgentPersonalBoard(){
++  const panel=$("agentPersonalBoard");
++  if(panel)panel.classList.add("hidden");
++  const title=$("agentPersonalTitle");
++  if(title)title.textContent="个人看板";
++}
 +/* 看板定时器：可见时持有，隐藏时全部暂停；不改任何权限/网络行为 */
 +function agentOpsPanelReadable(){
 +  const panel=$("console");
@@ -85,7 +106,8 @@
 +  if(!agentOpsPanelReadable())return; /* 隐藏暂停 */
 +  agentOpsHourlyTimer=setInterval(()=>{
 +    if(!agentOpsPanelReadable()||!token)return;
-+    if(Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
++    /* 可见时1小时兜底；pending补读优先排空（仍受退避/并发抑制约束） */
++    if(agentOpsHiddenDuringFlight||Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
 +  },60000);
 +  if(agentOpsTrack30s){
 +    agentOpsTrackTimer=setInterval(()=>{
@@ -96,24 +118,23 @@
 +}
 +function agentOpsOnVisibilityChange(){
 +  if(document.hidden){
-+    if(agentOpsLoading)agentOpsHiddenDuringFlight=true; /* 在途请求被隐藏盖住，记一次 */
++    if(agentOpsLoading)agentOpsHiddenDuringFlight=true; /* 在途请求被隐藏盖住，记一次pending补读 */
 +    agentOpsClearTimers(); /* 隐藏暂停 */
 +    return;
 +  }
 +  agentOpsEnsureTimers();
 +  if(!token||!agentOpsPanelReadable())return;
-+  if(agentOpsHiddenDuringFlight&&!agentOpsLoading){
-+    agentOpsHiddenDuringFlight=false;
-+    loadAgentStatusOps().catch(()=>{}); /* 补读一次：在途请求在隐藏期间结束 */
++  if(agentOpsHiddenDuringFlight){
++    /* 在途请求在隐藏期间发生：已结束→补读一次；仍在途→标志保留，结束后补读 */
++    if(!agentOpsLoading)loadAgentStatusOps().catch(()=>{});
 +    return;
 +  }
-+  /* 长时间隐藏后返回：可见时1小时兜底 */
-+  if(Date.now()-agentOpsLastSuccessAt>=AGENT_OPS_FALLBACK_MS)loadAgentStatusOps().catch(()=>{});
++  loadAgentStatusOps().catch(()=>{}); /* 每次返回读取一次（受退避/并发抑制约束） */
 +}
  async function loadSecuritySettings(){
    const user=await authApi("/auth/v1/user");
    const factors=Array.isArray(user?.factors)?user.factors:[];
-@@ -3525,6 +3591,7 @@
+@@ -3525,6 +3600,7 @@
  
  async function enterOperationsHub(){
    setAuthStage("console");
@@ -121,7 +142,7 @@
    if(opsAuthStatus)applyOpsStatus(opsAuthStatus);
    await loadSecuritySettings().catch(error=>{
      $("securityStatus").className="status top-gap bad";
-@@ -3852,6 +3919,29 @@
+@@ -3852,6 +3928,27 @@
  });
  $("logoutBtn").addEventListener("click",logout);
  $("opsLogoutBtn").addEventListener("click",logout);$("agentStatusOpsRefresh")?.addEventListener("click",()=>{loadAgentStatusOps().catch(()=>{});});
@@ -145,13 +166,11 @@
 +  if(!btn||!btn.dataset||!btn.dataset.agent)return;
 +  openAgentPersonalBoard(btn.dataset.agent);
 +});
-+$("agentPersonalClose")?.addEventListener("click",()=>{
-+  const panel=$("agentPersonalBoard");if(panel)panel.classList.add("hidden");
-+});
++$("agentPersonalClose")?.addEventListener("click",()=>{closeAgentPersonalBoard();});
  
  async function initializeOperationsSession(){
    if(consumePasswordSetupCallback()){
-@@ -3916,5 +4006,6 @@
+@@ -3916,5 +4013,6 @@
  
  
  // Refresh only the read-only team panel; never refresh device/config mutations.
