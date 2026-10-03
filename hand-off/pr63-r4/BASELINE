@@ -1,0 +1,9 @@
+BASELINE: PR63 head 33b7352 (33b73524479e), branch feat/xia-team-board-reviewed-20261004
+  Verified 2026-10-04: branch app.js/workspace.html/style.css are byte-identical to
+  the local candidate pre-fix (i.e. 33b7352 already contains rounds 1-3 fixes).
+PATCH: app.js.patch is an incremental unified diff vs BASELINE (one line only:
+  call clearAgentStatusOps() in the shared api() 401 branch). HTML/CSS unchanged.
+TESTS: test-board-refresh.mjs — 68 cases (53 prior + 15 new cross-path).
+  Local run: 68/68 PASS. Browser: NOT_RUN.
+APPLY: on a clean checkout of BASELINE:  patch -p1 < hand-off/pr63-r4/app.js.patch
+NOTE: supersedes hand-off/pr63/ full patches (those were vs b006573, already integrated).
