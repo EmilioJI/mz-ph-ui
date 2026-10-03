@@ -20,7 +20,8 @@
 .sr-badge.ok{background:#e6f4ea;color:#1a7f37;}
 .sr-badge.warn{background:#fef3c7;color:#92400e;}
 .sr-badge.bad{background:#fee2e2;color:#991b1b;}
-.sr-btn{padding:6px 14px;border:1px solid #d8cfc0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-right:6px;}
+.sr-btn{padding:6px 14px;border:1px solid #b8a88e;border-radius:6px;background:#fdfbf7;cursor:pointer;font-size:13px;margin-right:6px;color:#2a2118;}
+.sr-btn:hover{background:#f0e6d2;border-color:#8a7b66;}
 .sr-btn:hover{background:#f7f0e0;}
 .sr-btn.primary{background:#b03a2e;color:#fff;border-color:#b03a2e;}
 .sr-section{display:none;}
@@ -181,7 +182,7 @@ async function loadDevices(){
     const tb = document.getElementById("srDevList");
     if(!rows.length){ tb.innerHTML = '<tr><td colspan="6" class="muted">暂无设备</td></tr>'; return; }
     tb.innerHTML = rows.map(r =>
-      "<tr><td><strong>"+esc(r.device_name||"未命名")+"</strong><br><span class='muted' style='font-size:11px'>"+esc((r.device_id||"").slice(0,8))+"…</span></td>"
+      "<tr><td><strong>"+esc(r.device_name||"未命名")+"</strong><br><span class='muted' style='font-size:11px' title='"+esc(r.device_id||"")+"'>"+esc(r.device_id||"")+"</span></td>"
       + "<td>"+devBadge(r.status, r.enabled)+"</td>"
       + "<td>"+(r.invite_code ? '<span class="sr-code">'+esc(r.invite_code)+"</span>" : '<span class="muted">未设置</span>')+"</td>"
       + "<td>"+esc(r.app_version||"-")+"</td>"
@@ -195,7 +196,7 @@ async function loadDevices(){
   }catch(e){ document.getElementById("srDevList").innerHTML = '<tr><td colspan="6" class="muted">加载失败</td></tr>'; }
 }
 async function setCode(id){
-  const code = prompt("输入邀请码（私下发给用户）:");
+  const code = prompt("输入邀请码（8位字母数字，私下发给用户）:");
   if(!code) return;
   try{ await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {invite_code: code.trim(), status: "pending"}); alert("已设置"); loadDevices(); }
   catch(e){ alert("失败: "+e.message); }
