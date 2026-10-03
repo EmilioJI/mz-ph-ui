@@ -3087,7 +3087,51 @@ async function verifyMfa(){
   }
 }
 
-/* 六席状态 · Hub 全细节视图（运维登录＋MFA 后） */function escHtmlAgent(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}function agentStatusBadge(status){const label={"工作中":"工作中","空闲":"空闲","blocked":"受阻","未知":"未知"}[status]||status||"未知";const cls=status==="工作中"?"badge ok":(status==="blocked"?"badge bad":"badge");return '<span class="'+cls+'">'+escHtmlAgent(label)+"</span>";}function renderAgentStatusOps(rows){const box=$("agentStatusOpsList");if(!box)return;if(!rows||!rows.length){box.innerHTML='<p class="muted">暂无状态数据</p>';return;}box.innerHTML='<div style="overflow-x:auto"><table class="agent-table"><thead><tr>'+"<th>席位</th><th>状态</th><th>任务</th><th>详情</th><th>更新时间</th>"+"</tr></thead><tbody>"+rows.map(r=>{const links=Array.isArray(r.pr_links)?r.pr_links.filter(Boolean):[];const linkHtml=links.length?'<p class="agent-links">'+links.map(u=>'<a href="'+escHtmlAgent(u)+'" target="_blank" rel="noopener">PR</a>').join("")+"</p>":"";const repoHtml=r.repo?'<p class="field-note">'+escHtmlAgent(r.repo)+"</p>":"";return "<tr>"+"<td><strong>"+escHtmlAgent(r.name)+"</strong></td>"+"<td>"+agentStatusBadge(r.status)+"</td>"+'<td class="task">'+escHtmlAgent(r.task_name||"—")+"</td>"+"<td>"+escHtmlAgent(r.task_detail||"—")+repoHtml+linkHtml+"</td>"+"<td>"+escHtmlAgent(r.updated_at?new Date(r.updated_at).toLocaleString("zh-CN",{hour12:false}):"—")+"</td>"+"</tr>";}).join("")+"</tbody></table></div>";const meta=$("agentStatusOpsMeta");if(meta)meta.textContent="共 "+rows.length+" 席 · "+new Date().toLocaleString("zh-CN",{hour12:false})+" 刷新";}async function loadAgentStatusOps(){const stateEl=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");if(btn){btn.disabled=true;btn.textContent="刷新中…";}if(stateEl){stateEl.style.display="";stateEl.textContent="正在读取…";stateEl.className="status top-gap";}try{const rows=await authApi("/rest/v1/agent_status?select=*&order=id","GET");renderAgentStatusOps(rows);if(stateEl){stateEl.textContent="已同步";stateEl.className="status top-gap ok";}}catch(e){if(stateEl){stateEl.textContent="读取失败："+(e.message||e);stateEl.className="status top-gap bad";}}finally{if(btn){btn.disabled=false;btn.textContent="刷新";}}}async function loadSecuritySettings(){
+/* 六席状态：只读现有接口，沿用运维登录 */
+let agentOpsLoading=false;
+let agentOpsGeneration=0;
+function escHtmlAgent(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function agentStatusBadge(status){
+  const label={"工作中":"工作中",in_progress:"工作中","空闲":"空闲",idle:"空闲",blocked:"受阻",needs_review:"待评审","未知":"未知"}[status]||"未知";
+  return '<span class="badge">'+escHtmlAgent(label)+'</span>';
+}
+function renderAgentStatusOps(rows){
+  const box=$("agentStatusOpsList");if(!box)return;
+  const seats={bi:"笔",mo:"墨",zhi:"纸",yan:"砚",juan:"卷",xia:"匣"};
+  const byId=new Map(rows.map(r=>[r.id,r]));
+  box.innerHTML='<div class="agent-table-wrap"><table class="agent-table"><thead><tr><th>席位</th><th>自报状态</th><th>任务</th><th>进展 / 阻塞</th><th>来源时间（北京）</th></tr></thead><tbody>'+
+    Object.entries(seats).map(([id,name])=>{
+      const r=byId.get(id);
+      if(!r)return '<tr><td>'+name+'</td><td>未知</td><td>尚无上报</td><td>—</td><td>—</td></tr>';
+      const t=Date.parse(r.updated_at),age=Date.now()-t;
+      const stamp=Number.isFinite(t)?new Date(t).toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"}):"时间未核验";
+      const note=!Number.isFinite(t)?"":age < -60000?" · 来源时间异常":age > 21600000?" · 数据超过6小时":"";
+      return '<tr><td><strong>'+name+'</strong></td><td>'+agentStatusBadge(r.status)+'</td><td>'+escHtmlAgent(r.task_name||"—")+'</td><td>'+escHtmlAgent(r.task_detail||"未提供说明")+'</td><td>'+escHtmlAgent(stamp+note)+'</td></tr>';
+    }).join("")+'</tbody></table></div>';
+  $("agentStatusOpsMeta").textContent="数据为成员上报；时间取自同步源，不据此判定真实心跳或失联。";
+}
+async function loadAgentStatusOps(){
+  if(agentOpsLoading||!token||$("console").classList.contains("hidden")||document.hidden)return;
+  const generation=agentOpsGeneration;
+  agentOpsLoading=true;
+  const state=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");
+  if(btn)btn.disabled=true;
+  try{
+    const rows=await authApi("/rest/v1/agent_status?select=id,status,task_name,task_detail,updated_at&order=id","GET");
+    if(generation!==agentOpsGeneration||!token)return;
+    if(!Array.isArray(rows))throw new Error("状态格式异常");
+    renderAgentStatusOps(rows);
+    state.textContent="刷新成功 · "+new Date().toLocaleString("zh-CN",{hour12:false,timeZone:"Asia/Shanghai"})+"（北京）；刷新不代表新交付。";
+  }catch(e){
+    if(generation===agentOpsGeneration&&token)state.textContent="刷新失败，保留上次数据；当前状态未核验。";
+  }finally{agentOpsLoading=false;if(btn)btn.disabled=false;}
+}
+function clearAgentStatusOps(){
+  agentOpsGeneration++;
+  const box=$("agentStatusOpsList");if(box)box.innerHTML="";
+  const state=$("agentStatusOpsState");if(state)state.textContent="等待登录";
+}
+async function loadSecuritySettings(){
   const user=await authApi("/auth/v1/user");
   const factors=Array.isArray(user?.factors)?user.factors:[];
   const verifiedTotp=factors.filter(
@@ -3574,6 +3618,7 @@ async function testProvider(mode){
 }
 
 function clearSensitiveBrowserState(){
+  clearAgentStatusOps();
   token="";
   runtimeConsumerRawToken="";
   for(const id of ["api_key","jev_api_key","mfaCode","mfaSecret","backupTotpSecret","backupTotpCode"]){
@@ -3831,3 +3876,7 @@ document.querySelectorAll("[data-steward-scroll]").forEach(button=>{
   });
 });
 
+
+// Refresh only the read-only team panel; never refresh device/config mutations.
+setInterval(()=>{loadAgentStatusOps().catch(()=>{});},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadAgentStatusOps().catch(()=>{});});
