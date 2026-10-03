@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设备管理 · 水墨书院</title>
+<style>
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f1e8;color:#2a2118;margin:0;padding:20px;}
+h1{font-size:22px;margin-bottom:6px;}
+.muted{color:#8a7b66;font-size:13px;margin-bottom:18px;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #eee;font-size:14px;}
+th{background:#f7f0e0;font-weight:600;}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;}
+.badge.ok{background:#e6f4ea;color:#1a7f37;}
+.badge.warn{background:#fef3c7;color:#92400e;}
+.badge.bad{background:#fee2e2;color:#991b1b;}
+button{padding:6px 14px;border:1px solid #d8cfc0;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;margin-right:6px;}
+button:hover{background:#f7f0e0;}
+button.primary{background:#b03a2e;color:#fff;border-color:#b03a2e;}
+.code{font-family:monospace;background:#f7f0e0;padding:2px 8px;border-radius:4px;font-size:13px;}
+#loginGate{text-align:center;padding:60px 20px;}
+input[type=text]{padding:8px 12px;border:1px solid #d8cfc0;border-radius:6px;font-size:14px;width:200px;}
+</style>
+</head>
+<body>
+<div id="loginGate" style="display:none">
+<h1>设备管理</h1>
+<p class="muted">请先通过运维平台登录</p>
+<button class="primary" onclick="location.href='workspace.html'">去登录</button>
+</div>
+<div id="main" style="display:none">
+<h1>设备管理</h1>
+<p class="muted">已连接水墨书院 App 的手机 · 停用后该设备无法使用 · 邀请码由你私下分发</p>
+<button onclick="loadDevices()">刷新</button>
+<span id="meta" class="muted" style="margin-left:12px"></span>
+<table style="margin-top:12px"><thead><tr>
+<th>设备</th><th>状态</th><th>邀请码</th><th>版本</th><th>最后在线</th><th>操作</th>
+</tr></thead><tbody id="list"></tbody></table>
+</div>
+<script>
+const SB_URL = "https://ftcyyvyoowkctbupzkct.supabase.co";
+const SB_ANON = "sb_publishable_vsp2sdBNKkqGh97lTvJRFg_Bmk7fNdO";
+
+function getToken(){
+  // 从 localStorage 读 Supabase Auth session（与主 Hub 同源）
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && k.includes("auth-token")){
+      try{
+        const v = JSON.parse(localStorage.getItem(k));
+        if(v && v.access_token) return v.access_token;
+      }catch(e){}
+    }
+  }
+  return null;
+}
+
+async function api(path, method, body){
+  const token = getToken();
+  if(!token) throw new Error("未登录");
+  const r = await fetch(SB_URL + path, {
+    method: method || "GET",
+    headers: {
+      "apikey": SB_ANON,
+      "Authorization": "Bearer " + token,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+function statusBadge(s, enabled){
+  if(!enabled) return '<span class="badge bad">停用</span>';
+  if(s === "active") return '<span class="badge ok">正常</span>';
+  return '<span class="badge warn">待邀请码</span>';
+}
+
+async function loadDevices(){
+  try{
+    const rows = await api("/rest/v1/devices?select=*&order=last_seen.desc");
+    const tb = document.getElementById("list");
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="6" class="muted">暂无设备</td></tr>'; return; }
+    tb.innerHTML = rows.map(r => {
+      const code = r.invite_code ? '<span class="code">'+esc(r.invite_code)+'</span>' : '<span class="muted">未设置</span>';
+      return "<tr>"
+        + "<td><strong>"+esc(r.device_name||"未命名")+"</strong><br><span class='muted' style='font-size:11px'>"+esc((r.device_id||"").slice(0,8))+"…</span></td>"
+        + "<td>"+statusBadge(r.status, r.enabled)+"</td>"
+        + "<td>"+code+"</td>"
+        + "<td>"+esc(r.app_version||"-")+"</td>"
+        + "<td>"+esc(r.last_seen?new Date(r.last_seen).toLocaleString("zh-CN",{hour12:false}):"-")+"</td>"
+        + "<td>"
+        + "<button onclick=\"setCode('"+esc(r.device_id)+"')\">设邀请码</button>"
+        + (r.enabled
+            ? "<button onclick=\"toggleDev('"+esc(r.device_id)+"',false)\">停用</button>"
+            : "<button onclick=\"toggleDev('"+esc(r.device_id)+"',true)\">启用</button>")
+        + "<button onclick=\"delDev('"+esc(r.device_id)+"')\">删除</button>"
+        + "</td></tr>";
+    }).join("");
+    document.getElementById("meta").textContent = "共 " + rows.length + " 台";
+  }catch(e){
+    alert("加载失败: " + e.message);
+  }
+}
+
+async function setCode(id){
+  const code = prompt("输入邀请码（8位字母数字，私下发给用户）:");
+  if(!code) return;
+  try{
+    // 设置邀请码并重置为 pending（用户需重新输入）
+    await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH",
+      {invite_code: code.trim(), status: "pending"});
+    alert("已设置，设备下次打开时会要求输入新邀请码");
+    loadDevices();
+  }catch(e){ alert("设置失败: " + e.message); }
+}
+
+async function toggleDev(id, enable){
+  try{
+    await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "PATCH", {enabled: enable});
+    loadDevices();
+  }catch(e){ alert("操作失败: " + e.message); }
+}
+
+async function delDev(id){
+  if(!confirm("删除该设备？")) return;
+  try{
+    await api("/rest/v1/devices?device_id=eq."+encodeURIComponent(id), "DELETE");
+    loadDevices();
+  }catch(e){ alert("删除失败: " + e.message); }
+}
+
+// 启动
+(function(){
+  if(!getToken()){
+    document.getElementById("loginGate").style.display = "";
+  }else{
+    document.getElementById("main").style.display = "";
+    loadDevices();
+  }
+})();
+</script>
+</body>
+</html>
