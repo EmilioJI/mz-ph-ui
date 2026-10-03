@@ -3087,7 +3087,7 @@ async function verifyMfa(){
   }
 }
 
-async function loadSecuritySettings(){
+/* 六席状态 · Hub 全细节视图（运维登录＋MFA 后） */function escHtmlAgent(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}function agentStatusBadge(status){const label={"工作中":"工作中","空闲":"空闲","blocked":"受阻","未知":"未知"}[status]||status||"未知";const cls=status==="工作中"?"badge ok":(status==="blocked"?"badge bad":"badge");return '<span class="'+cls+'">'+escHtmlAgent(label)+"</span>";}function renderAgentStatusOps(rows){const box=$("agentStatusOpsList");if(!box)return;if(!rows||!rows.length){box.innerHTML='<p class="muted">暂无状态数据</p>';return;}box.innerHTML='<div style="overflow-x:auto"><table class="agent-table"><thead><tr>'+"<th>席位</th><th>状态</th><th>任务</th><th>详情</th><th>更新时间</th>"+"</tr></thead><tbody>"+rows.map(r=>{const links=Array.isArray(r.pr_links)?r.pr_links.filter(Boolean):[];const linkHtml=links.length?'<p class="agent-links">'+links.map(u=>'<a href="'+escHtmlAgent(u)+'" target="_blank" rel="noopener">PR</a>').join("")+"</p>":"";const repoHtml=r.repo?'<p class="field-note">'+escHtmlAgent(r.repo)+"</p>":"";return "<tr>"+"<td><strong>"+escHtmlAgent(r.name)+"</strong></td>"+"<td>"+agentStatusBadge(r.status)+"</td>"+'<td class="task">'+escHtmlAgent(r.task_name||"—")+"</td>"+"<td>"+escHtmlAgent(r.task_detail||"—")+repoHtml+linkHtml+"</td>"+"<td>"+escHtmlAgent(r.updated_at?new Date(r.updated_at).toLocaleString("zh-CN",{hour12:false}):"—")+"</td>"+"</tr>";}).join("")+"</tbody></table></div>";const meta=$("agentStatusOpsMeta");if(meta)meta.textContent="共 "+rows.length+" 席 · "+new Date().toLocaleString("zh-CN",{hour12:false})+" 刷新";}async function loadAgentStatusOps(){const stateEl=$("agentStatusOpsState"),btn=$("agentStatusOpsRefresh");if(btn){btn.disabled=true;btn.textContent="刷新中…";}if(stateEl){stateEl.style.display="";stateEl.textContent="正在读取…";stateEl.className="status top-gap";}try{const rows=await authApi("/rest/v1/agent_status?select=*&order=id","GET");renderAgentStatusOps(rows);if(stateEl){stateEl.textContent="已同步";stateEl.className="status top-gap ok";}}catch(e){if(stateEl){stateEl.textContent="读取失败："+(e.message||e);stateEl.className="status top-gap bad";}}finally{if(btn){btn.disabled=false;btn.textContent="刷新";}}}async function loadSecuritySettings(){
   const user=await authApi("/auth/v1/user");
   const factors=Array.isArray(user?.factors)?user.factors:[];
   const verifiedTotp=factors.filter(
@@ -3448,7 +3448,7 @@ async function enterOperationsHub(){
     $("securityStatus").className="status top-gap bad";
     $("securityStatus").textContent="安全状态加载失败："+error.message;
   });
-  await applyProjectSelection();
+  await applyProjectSelection();  loadAgentStatusOps().catch(()=>{});
 }
 
 async function bootstrapAuthenticatedSession(){
@@ -3761,7 +3761,7 @@ $("backupTotpCopyBtn").addEventListener("click",async()=>{
   }
 });
 $("logoutBtn").addEventListener("click",logout);
-$("opsLogoutBtn").addEventListener("click",logout);
+$("opsLogoutBtn").addEventListener("click",logout);$("agentStatusOpsRefresh")?.addEventListener("click",()=>{loadAgentStatusOps().catch(()=>{});});
 
 async function initializeOperationsSession(){
   if(consumePasswordSetupCallback()){
