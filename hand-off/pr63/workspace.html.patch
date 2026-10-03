@@ -1,0 +1,28 @@
+--- a/workspace.html
++++ b/workspace.html
+@@ -173,13 +173,24 @@
+     </section>
+ 
+ <section id="agentStatusOps" class="card">
+-<div class="section-title"><div><h2>小书童 · 六人团队看板</h2><p class="muted">只读 · 每30秒刷新 · 隐藏页面暂停</p></div><button id="agentStatusOpsRefresh" class="secondary" type="button">刷新</button></div>
++<div class="section-title"><div><h2>小书童 · 六人团队看板</h2><p class="muted">只读 · 手动刷新 · 可见时每小时兜底同步 · 隐藏页面暂停</p></div><div class="agent-ops-actions"><label class="track-toggle"><input type="checkbox" id="agentStatusOpsTrack30s"> 临时跟踪（30秒，可选）</label><button id="agentStatusOpsRefresh" class="secondary" type="button">刷新</button></div></div>
+ <p id="agentStatusOpsMeta" class="field-note">等待来源数据</p>
+ <div id="agentStatusOpsState" class="status" role="status" aria-live="polite">等待首次刷新</div>
+ <div id="agentStatusOpsList"></div>
+ <p class="field-note"><a href="https://github.com/xiaoshutong-ai/xiaoshutong-governance/issues?q=is%3Aissue+is%3Aopen+%22团队状态板%22" target="_blank" rel="noopener noreferrer">核对治理仓状态板来源</a> · 状态同步可能滞后，完成情况请核对产物证据。</p>
+ </section>
+ 
++<section id="agentPersonalBoard" class="card hidden" aria-label="个人看板（准备中）">
++<div class="section-title"><div><h2 id="agentPersonalTitle">个人看板</h2><p class="muted">准备中 · 数据未接入，此处不展示任何任务内容</p></div><button id="agentPersonalClose" class="ghost" type="button">关闭</button></div>
++<div class="agent-personal-cols">
++<div class="agent-personal-col"><h3>当前</h3><p class="muted">数据未接入</p></div>
++<div class="agent-personal-col"><h3>已批准待办</h3><p class="muted">数据未接入</p></div>
++<div class="agent-personal-col"><h3>待决</h3><p class="muted">数据未接入</p></div>
++<div class="agent-personal-col"><h3>近期完成</h3><p class="muted">数据未接入</p></div>
++<div class="agent-personal-col"><h3>归档</h3><p class="muted">数据未接入</p></div>
++</div>
++</section>
++
+     <section id="stewardDashboard" class="steward-focus hidden">
+       <div class="steward-focus-shell">
+         <aside class="steward-side">
