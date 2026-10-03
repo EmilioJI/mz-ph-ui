@@ -3449,6 +3449,13 @@ async function enterOperationsHub(){
     $("securityStatus").textContent="安全状态加载失败："+error.message;
   });
   await applyProjectSelection();  loadAgentStatusOps().catch(()=>{});
+  // 登录后回跳：从 studyroom.html 过来的，登录完跳回去
+  try{
+    const from=new URLSearchParams(location.search).get("from");
+    if(from==="studyroom.html"){
+      location.href="./studyroom.html";
+    }
+  }catch(_e){}
 }
 
 async function bootstrapAuthenticatedSession(){
