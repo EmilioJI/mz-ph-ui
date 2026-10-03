@@ -3420,7 +3420,7 @@ async function applyProjectSelection(){
   const project=membershipFor();
   if(!project)return;
   sessionStorage.setItem("mz_ops_project",selectedProjectKey);
-  $("projectSelect").value=selectedProjectKey;
+  /* 小书童水墨书院是独立页面：下拉框选中后直接跳转，不在 Hub 内渲染 */ const studyroomKey=selectedProjectKey==="xiaoshutong-studyroom"||String(project.display_name||"").trim()==="小书童水墨书院"; if(studyroomKey){ /* 不把独立页 key 留在会话选中里，避免从独立页返回 Hub 时循环跳转 */ const fallback=opsMemberships.some(p=>p?.project_key==="mengzheng")?"mengzheng":String(opsMemberships[0]?.project_key||""); if(fallback)sessionStorage.setItem("mz_ops_project",fallback); window.location.href="./studyroom.html"; return; } $("projectSelect").value=selectedProjectKey;
   renderProjectSelection();
   $("auditLog").textContent="正在加载 "+String(project.display_name||selectedProjectKey)+" 审计…";
   await loadAudit();
