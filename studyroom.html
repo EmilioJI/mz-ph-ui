@@ -106,17 +106,26 @@
 const SB_URL = "https://ftcyyvyoowkctbupzkct.supabase.co";
 const SB_ANON = "sb_publishable_vsp2sdBNKkqGh97lTvJRFg_Bmk7fNdO";
 
-function getToken(){
-  for(let i=0;i<localStorage.length;i++){
-    const k = localStorage.key(i);
-    if(k && k.includes("auth-token")){
-      try{ const v = JSON.parse(localStorage.getItem(k)); if(v && v.access_token) return v.access_token; }catch(e){}
-    }
-  }
-  return null;
+let _srAccessToken = null;
+async function getToken(){
+  if(_srAccessToken) return _srAccessToken;
+  // 用 workspace 存在 sessionStorage 的 refresh_token 换 access_token（只放内存，不落盘）
+  const rt = sessionStorage.getItem("mz_ops_refresh_token");
+  if(!rt) return null;
+  try{
+    const r = await fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: {"apikey": SB_ANON, "Content-Type": "application/json"},
+      body: JSON.stringify({refresh_token: rt})
+    });
+    if(!r.ok) return null;
+    const j = await r.json();
+    _srAccessToken = j.access_token || null;
+    return _srAccessToken;
+  }catch(e){ return null; }
 }
 async function api(path, method, body){
-  const token = getToken(); if(!token) throw new Error("未登录");
+  const token = await getToken(); if(!token) throw new Error("未登录");
   const r = await fetch(SB_URL + path, {
     method: method||"GET",
     headers: {"apikey": SB_ANON, "Authorization": "Bearer "+token, "Content-Type": "application/json", "Prefer": "return=representation"},
@@ -221,7 +230,7 @@ async function loadAgents(){
 function refreshAll(){ loadOverview(); loadDevices(); loadAgents(); }
 
 (function(){
-  if(!getToken()){ document.getElementById("srLoginGate").style.display = ""; }
+  getToken().then(t=>{ if(!t){ document.getElementById("srLoginGate").style.display = ""; } });
   else{ document.getElementById("srApp").style.display = ""; refreshAll(); }
 })();
 </script>
