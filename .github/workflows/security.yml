@@ -421,8 +421,11 @@ jobs:
               'data-sr="srChat"',
               'id="srChatDevice"',
               'id="srChatConfigList"',
+              'id="srMuseTrusted"',
               'studyroom_config',
               'studyroom_config_save',
+              'studyroom_muse_device_save',
+              'Owner 信任 Muse 设备',
               '匣固定 API',
               '跟随 Provider Hub',
           ):

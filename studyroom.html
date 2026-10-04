@@ -112,12 +112,14 @@
 <!-- 六席对话 -->
 <div id="srChat" class="sr-section">
 <div class="sr-chat-note">
-普通设备若没有单独覆盖，六席全部走服务端大模型 API；只有你在这里明确把“笔/墨/纸/砚/卷”的某个设备切到 Muse 才会走 XstPilot。匣固定为 API。模型密钥继续由 Provider Hub / Vault 管理，本页不接触密钥。
+普通设备技术上强制走服务端大模型 API。只有先把一台设备标记为“Owner 信任 Muse 设备”，笔/墨/纸/砚/卷才会出现 Muse 选项；匣始终固定 API。Muse 会连接你的开发 Muse，因此此信任只应给你本人控制的设备。模型密钥继续由 Provider Hub / Vault 管理，本页不接触密钥。
 </div>
 <div class="sr-chat-toolbar">
 <label for="srChatDevice"><strong>设备</strong></label>
 <select id="srChatDevice" onchange="loadStudyroomChatConfig()"><option value="">先加载设备…</option></select>
 <button class="sr-btn" type="button" onclick="loadStudyroomChatConfig()">刷新配置</button>
+<label><input id="srMuseTrusted" type="checkbox" style="width:auto"> Owner 信任 Muse 设备</label>
+<button class="sr-btn" type="button" onclick="saveStudyroomMuseTrust()">保存信任</button>
 <span id="srChatProviderState" class="muted"></span>
 </div>
 <div id="srChatStatus" class="muted" style="margin:8px 0"></div>
@@ -351,11 +353,13 @@ async function loadStudyroomChatConfig(){
     const data = await opsApi("studyroom_config","GET",null,{device_id:deviceId});
     const cfg = data.config || {};
     const states = cfg.provider_key_states || {};
+    document.getElementById("srMuseTrusted").checked = cfg.device?.muse_trusted === true;
     document.getElementById("srChatProviderState").textContent =
       "Provider Key：GLM "+(states.zhipuai?"已配置":"未配置")+" · DeepSeek "+(states.deepseek?"已配置":"未配置");
     const chars = Array.isArray(cfg.characters) ? cfg.characters : [];
     tb.innerHTML = chars.map(c => {
       const cid = String(c.character_id||"");
+      if(!["bi","mo","zhi","yan","juan","xia"].includes(cid)) return "";
       const muse = c.muse_allowed === true;
       const mode = String(c.runtime_mode||"API");
       const provider = String(c.api_provider_override||c.api_provider||"inherit");
@@ -368,7 +372,7 @@ async function loadStudyroomChatConfig(){
         +"<td><select id='srMode-"+cid+"' "+(muse?"":"disabled")+">"
           +"<option value='API'"+srSelected(mode,"API")+">API</option>"
           +(muse?"<option value='MUSE'"+srSelected(mode,"MUSE")+">Muse</option>":"")
-          +"</select>"+(muse?"":"<div class='muted' style='font-size:11px'>匣固定 API</div>")+"</td>"
+          +"</select>"+(muse?"":"<div class='muted' style='font-size:11px'>"+(cid==="xia"?"匣固定 API":"需先启用 Owner Muse 信任")+"</div>")+"</td>"
         +"<td><select id='srProvider-"+cid+"'>"
           +"<option value='inherit'"+srSelected(provider,"inherit")+">跟随 Provider Hub</option>"
           +"<option value='zhipuai'"+srSelected(provider,"zhipuai")+">GLM / ZhipuAI</option>"
@@ -388,6 +392,34 @@ async function loadStudyroomChatConfig(){
     status.textContent = "读取失败："+e.message;
   }
 }
+async function saveStudyroomMuseTrust(){
+  const deviceId = document.getElementById("srChatDevice").value;
+  if(!deviceId) return;
+  const box = document.getElementById("srMuseTrusted");
+  const enabled = box.checked;
+  const message = enabled
+    ? "启用后，这台设备的笔/墨/纸/砚/卷可直接连接你的开发 Muse。仅应给你本人控制的设备开启。确定继续？"
+    : "关闭后，该设备所有 Muse 席位会立即退回 API 模式。确定继续？";
+  if(!confirm(message)){
+    await loadStudyroomChatConfig();
+    return;
+  }
+  const status = document.getElementById("srChatStatus");
+  status.textContent = enabled ? "正在启用 Owner Muse 信任…" : "正在关闭 Muse 信任…";
+  try{
+    await opsApi("studyroom_muse_device_save","POST",{
+      device_id:deviceId,
+      enabled:enabled,
+      note:enabled ? "Owner-approved StudyRoom Muse device" : "Muse disabled"
+    });
+    status.textContent = enabled ? "已启用 Owner Muse 信任" : "已关闭 Muse 信任，Muse 覆盖已退回 API";
+    await loadStudyroomChatConfig();
+  }catch(e){
+    status.textContent = "信任设置失败："+e.message;
+    await loadStudyroomChatConfig();
+  }
+}
+
 async function saveStudyroomCharacter(cid){
   const deviceId = document.getElementById("srChatDevice").value;
   if(!deviceId) return;
